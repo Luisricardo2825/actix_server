@@ -6,5 +6,24 @@ diesel::table! {
         title -> Varchar,
         body -> Text,
         published -> Bool,
+        created_at -> Nullable<Timestamp>,
+        updated_at -> Nullable<Timestamp>,
     }
 }
+
+diesel::table! {
+    users (id) {
+        id -> Int4,
+        name -> Varchar,
+        email -> Text,
+        password -> Text,
+        blocked -> Bool,
+        created_at -> Nullable<Timestamp>,
+        updated_at -> Nullable<Timestamp>,
+    }
+}
+
+diesel::allow_tables_to_appear_in_same_query!(
+    posts,
+    users,
+);

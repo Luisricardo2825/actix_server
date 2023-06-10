@@ -8,9 +8,19 @@ build = "build.rs"
 
 [dependencies]
 actix-web = "4.3.1"
+actix-web-httpauth = "0.8.0"
+# ORM
 diesel = { version = "2.1.0", features = ["postgres"] }
+# Env file manageament
 dotenvy = "0.15"
+# JSON serialize and deserialize
 serde = { version = "1.0", features = ["derive"] }
-env_logger = "0.10.0"
 serde_json = "1.0.96"
 futures = "0.3"
+# Logging
+env_logger = "0.10.0"
+#auth
+jsonwebtoken = "8"
+# Pass hashing
+rust-argon2 = "1.0"
+
