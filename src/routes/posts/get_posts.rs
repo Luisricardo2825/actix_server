@@ -1,17 +1,11 @@
-use std::error::Error;
-use std::pin::Pin;
-
-use actix_web::dev::Payload;
 use actix_web::get;
 use actix_web::web;
-use actix_web::FromRequest;
-use actix_web::HttpRequest;
+
 use actix_web::HttpResponse;
 use actix_web::Responder;
 use actix_web::Result;
 
 use diesel::prelude::*;
-use futures::Future;
 use serde::Deserialize;
 use serde::Serialize;
 
