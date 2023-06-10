@@ -1,6 +1,6 @@
 use actix_server::config::query_cfg;
 use actix_server::middlewares::auth::bearer;
-use actix_server::routes::scopes::posts_route;
+use actix_server::routes::scopes::{posts_route, users_route};
 use actix_web::middleware::{Compress, Logger, NormalizePath};
 use actix_web::{App, HttpServer};
 use actix_web_httpauth::middleware::HttpAuthentication;
@@ -20,6 +20,7 @@ async fn main() -> std::io::Result<()> {
             )) // Normalize trailing slash(Resolve the "/" at ending of a endpoint)
             .wrap(HttpAuthentication::bearer(bearer))
             .service(posts_route())
+            .service(users_route())
     })
     .bind(("127.0.0.1", 8080))?
     .run()
