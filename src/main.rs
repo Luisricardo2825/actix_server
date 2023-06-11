@@ -1,7 +1,7 @@
 use actix_server::config::query_cfg;
 
 use actix_server::middlewares::custom_auth;
-use actix_server::routes::scopes::{posts_route, users_route, login_route};
+use actix_server::routes::scopes::{login_route, posts_route, users_route};
 
 use actix_web::middleware::{Compress, DefaultHeaders, Logger, NormalizePath};
 use actix_web::{App, HttpServer};
@@ -21,7 +21,7 @@ async fn main() -> std::io::Result<()> {
                 actix_web::middleware::TrailingSlash::Always,
             )) // Normalize trailing slash(Resolve the "/" at ending of a endpoint)
             .service(posts_route().wrap(custom_auth::CheckLogin))
-            .service(users_route())
+            .service(users_route().wrap(custom_auth::CheckLogin))
             .service(login_route())
         // .wrap(HttpAuthentication::bearer(bearer))
     })
