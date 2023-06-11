@@ -1,9 +1,10 @@
 use actix_server::config::query_cfg;
-use actix_server::middlewares::auth::bearer;
-use actix_server::routes::scopes::{posts_route, users_route};
-use actix_web::middleware::{Compress, Logger, NormalizePath};
+
+use actix_server::middlewares::custom_auth;
+use actix_server::routes::scopes::{posts_route, users_route, login_route};
+
+use actix_web::middleware::{Compress, DefaultHeaders, Logger, NormalizePath};
 use actix_web::{App, HttpServer};
-use actix_web_httpauth::middleware::HttpAuthentication;
 use env_logger::Env;
 
 #[actix_web::main] // or #[tokio::main]
@@ -14,13 +15,15 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(query_cfg::main())
             .wrap(Logger::default())
+            .wrap(DefaultHeaders::new().add(("Content-Type", "application/json")))
             .wrap(Compress::default())
             .wrap(NormalizePath::new(
                 actix_web::middleware::TrailingSlash::Always,
             )) // Normalize trailing slash(Resolve the "/" at ending of a endpoint)
-            .wrap(HttpAuthentication::bearer(bearer))
-            .service(posts_route())
+            .service(posts_route().wrap(custom_auth::CheckLogin))
             .service(users_route())
+            .service(login_route())
+        // .wrap(HttpAuthentication::bearer(bearer))
     })
     .bind(("127.0.0.1", 8080))?
     .run()

@@ -1,5 +1,4 @@
-use std::time::SystemTime;
-
+use chrono::NaiveDateTime;
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -14,6 +13,6 @@ pub struct User {
     pub email: String,
     pub password: String,
     pub blocked: bool,
-    pub created_at: Option<SystemTime>,
-    pub updated_at: Option<SystemTime>,
+    pub created_at: Option<NaiveDateTime>,
+    pub updated_at: Option<NaiveDateTime>,
 }

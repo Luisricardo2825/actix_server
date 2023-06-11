@@ -1,3 +1,5 @@
+use actix_web::web;
+
 /**
 Route for posts.
 
@@ -15,19 +17,29 @@ return actix_web::Scope
  */
 
 pub fn posts_route() -> actix_web::Scope {
-    use crate::routes::posts::{alter_post, create_post, delete_post, get_posts};
+    use crate::controller::posts::post_controller::PostController;
 
     actix_web::web::scope("posts")
-        .service(get_posts::main)
-        .service(create_post::main)
-        .service(alter_post::main)
-        .service(delete_post::main)
+        .route("/", web::post().to(PostController::create))
+        .route("/{id}/", web::get().to(PostController::find))
+        .route("/", web::get().to(PostController::find_all))
+        .route("/", web::patch().to(PostController::update))
+        .route("/", web::delete().to(PostController::delete))
 }
 
 pub fn users_route() -> actix_web::Scope {
-    use crate::routes::users::{create_user, get_users};
+    use crate::controller::users::user_controller::UserController;
 
     actix_web::web::scope("users")
-        .service(get_users::main)
-        .service(create_user::main)
+        .route("/", web::post().to(UserController::create))
+        .route("/{id}/", web::get().to(UserController::find))
+        .route("/", web::get().to(UserController::find_all))
+        .route("/", web::patch().to(UserController::update))
+        .route("/", web::delete().to(UserController::delete))
+}
+
+pub fn login_route() -> actix_web::Scope {
+    use crate::controller::login::auth_controller::AuthController;
+
+    actix_web::web::scope("login").route("/", web::post().to(AuthController::login))
 }
