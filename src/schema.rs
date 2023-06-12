@@ -18,6 +18,8 @@ diesel::table! {
         email -> Text,
         password -> Text,
         blocked -> Bool,
+        api_rights -> Bool,
+        admin -> Bool,
         created_at -> Nullable<Timestamp>,
         updated_at -> Nullable<Timestamp>,
     }

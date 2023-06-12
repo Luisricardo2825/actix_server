@@ -13,6 +13,8 @@ pub struct User {
     pub email: String,
     pub password: String,
     pub blocked: bool,
+    pub api_rights: bool,
+    pub admin: bool,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
 }
