@@ -20,13 +20,6 @@ impl PasswordUtils {
         return user;
     }
     pub fn verify(password: String, hash: String) -> bool {
-        println!("{}",&password);
-        match argon2::verify_encoded(&hash, password.as_bytes()) {
-            Ok(_) => true,
-            Err(err) => {
-                println!("{:?}", err);
-                return false;
-            }
-        }
+        argon2::verify_encoded(&hash, password.as_bytes()).unwrap()
     }
 }
