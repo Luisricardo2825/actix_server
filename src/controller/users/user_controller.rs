@@ -97,11 +97,9 @@ impl UserController {
         }
 
         new_user = PasswordUtils::hash(new_user); // Hash password
+        let query = insert_into(dsl::users).values(&new_user);
 
-        match insert_into(dsl::users)
-            .values(&new_user)
-            .get_result::<User>(connection)
-        {
+        match query.get_result::<User>(connection) {
             Ok(res) => {
                 return Ok(HttpResponse::Created().json(res));
             }
@@ -111,6 +109,21 @@ impl UserController {
                     values: Some(new_user),
                 }));
             }
+        }
+    }
+    pub async fn create_default_admin(mut new_user: Create) -> bool {
+        let connection = &mut establish_connection();
+
+        // Check if user already exists
+        if user_exists(&new_user.email) {
+            return false;
+        }
+
+        new_user = PasswordUtils::hash(new_user); // Hash password
+        let query = insert_into(dsl::users).values(&new_user);
+        match query.get_result::<User>(connection) {
+            Ok(_) => return true,
+            Err(_) => false,
         }
     }
     pub async fn update(payload: web::Payload) -> Result<impl Responder> {

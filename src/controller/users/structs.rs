@@ -21,7 +21,9 @@ pub struct Create {
     pub name: String,
     pub email: String,
     pub password: String,
-    pub blocked: bool,
+    pub blocked: Option<bool>,
+    pub api_rights: Option<bool>,
+    pub admin: Option<bool>,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
 }

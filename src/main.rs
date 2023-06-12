@@ -1,5 +1,7 @@
 use actix_server::config::query_cfg;
 
+use actix_server::controller::users::structs::Create;
+use actix_server::controller::users::user_controller;
 use actix_server::middlewares::CHECK_LOGIN;
 use actix_server::routes::scopes::{login_route, posts_route, users_route};
 
@@ -11,6 +13,9 @@ use env_logger::Env;
 async fn main() -> std::io::Result<()> {
     env_logger::init_from_env(Env::default().default_filter_or("info"));
 
+    if init_server().await {
+        println!("Created default admin");
+    }
     HttpServer::new(move || {
         App::new()
             .app_data(query_cfg::main())
@@ -30,4 +35,21 @@ async fn main() -> std::io::Result<()> {
     .await
 }
 
+async fn init_server() -> bool {
+    user_controller::UserController::create_default_admin({
+        Create {
+            id: Some(0),
+            name: "admin".to_string(),
+            email: "admin@adm.com".to_string(),
+            password: "admin".to_string(),
+            blocked: None,
+            admin: Some(true),
+            api_rights: Some(true),
+            created_at: None,
+            updated_at: None,
+        }
+    })
+    .await
+}
 // cargo watch -c -w src -x run
+//     let debug = diesel::debug_query::<diesel::pg::Pg, _>(&query);
