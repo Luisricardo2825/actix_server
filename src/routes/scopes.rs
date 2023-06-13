@@ -16,30 +16,33 @@ return actix_web::Scope
 ```
  */
 
-pub fn posts_route() -> actix_web::Scope {
-    use crate::controller::posts::post_controller::PostController;
+pub struct Scopes;
 
-    actix_web::web::scope("posts")
-        .route("/", web::post().to(PostController::create))
-        .route("/{id}/", web::get().to(PostController::find))
-        .route("/", web::get().to(PostController::find_all))
-        .route("/", web::patch().to(PostController::update))
-        .route("/", web::delete().to(PostController::delete))
-}
+impl Scopes {
+    pub fn posts_scope() -> actix_web::Scope {
+        use crate::services::posts::PostsRoute;
 
-pub fn users_route() -> actix_web::Scope {
-    use crate::controller::users::user_controller::UserController;
+        actix_web::web::scope("posts")
+            .route("/", web::post().to(PostsRoute::create))
+            .route("/{id}/", web::get().to(PostsRoute::find))
+            .route("/", web::get().to(PostsRoute::find_all))
+            .route("/", web::patch().to(PostsRoute::update))
+            .route("/", web::delete().to(PostsRoute::delete))
+    }
 
-    actix_web::web::scope("users")
-        .route("/", web::post().to(UserController::create))
-        .route("/{id}/", web::get().to(UserController::find))
-        .route("/", web::get().to(UserController::find_all))
-        .route("/", web::patch().to(UserController::update))
-        .route("/", web::delete().to(UserController::delete))
-}
+    pub fn users_scope() -> actix_web::Scope {
+        use crate::services::users::UsersRoute;
 
-pub fn login_route() -> actix_web::Scope {
-    use crate::controller::login::auth_controller::AuthController;
+        actix_web::web::scope("users")
+            .route("/", web::post().to(UsersRoute::create))
+            .route("/{id}/", web::get().to(UsersRoute::find))
+            .route("/", web::get().to(UsersRoute::find_all))
+            .route("/", web::patch().to(UsersRoute::update))
+            .route("/", web::delete().to(UsersRoute::delete))
+    }
 
-    actix_web::web::scope("login").route("/", web::post().to(AuthController::login))
+    pub fn login_scope() -> actix_web::Scope {
+        use crate::services::auth::AuthService;
+        actix_web::web::scope("login").route("/", web::post().to(AuthService::login))
+    }
 }

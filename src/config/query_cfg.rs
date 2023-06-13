@@ -4,6 +4,7 @@ use actix_web::{error, web::QueryConfig, HttpResponse};
 
 use crate::routes::utils::reponses::ReturnError;
 
+// Used to change the default error when a query is invalid
 pub fn main() -> QueryConfig {
     QueryConfig::default()
         // use custom error handler

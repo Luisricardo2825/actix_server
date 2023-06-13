@@ -1,6 +1,3 @@
-use actix_web::web;
-use actix_web::HttpResponse;
-use actix_web::Responder;
 use actix_web::Result;
 
 use diesel::delete;
@@ -12,10 +9,8 @@ use crate::models::db::connection::establish_connection;
 use crate::models::users_model::User;
 use crate::routes::utils::reponses::ReturnError;
 use crate::schema::users::dsl;
-use crate::utils::deserialize_payload::deserialize_payload;
 
 use super::structs::Create;
-use super::structs::Delete;
 use super::structs::QueryParams;
 use super::structs::Update;
 use super::utils::password::PasswordUtils;
@@ -23,77 +18,30 @@ use super::utils::password::PasswordUtils;
 pub struct UserController;
 
 impl UserController {
-    pub async fn delete(payload: web::Payload) -> Result<impl Responder> {
-        let mut json = web::BytesMut::new();
-        json = match deserialize_payload(json, payload).await {
-            Ok(res) => res,
-            Err(err) => {
-                return Ok(HttpResponse::BadRequest().json(err));
-            }
-        };
-
-        // body is loaded, now we can deserialize serde-json
-        let new_user = match serde_json::from_slice::<Delete>(&json) {
-            Ok(res) => res,
-            Err(err) => {
-                return Ok(HttpResponse::BadRequest().json(ReturnError::<Delete> {
-                    error_msg: format!("Invalid JSON: {}", err.to_string()),
-                    values: None,
-                }));
-            }
-        };
-
+    pub fn delete(id: i32) -> Result<User, ReturnError<i32>> {
         let connection = &mut establish_connection();
         match delete(dsl::users)
-            .filter(dsl::id.eq(&new_user.id))
+            .filter(dsl::id.eq(id))
             .get_result::<User>(connection)
         {
             Ok(res) => {
-                return Ok(HttpResponse::Ok().json(res)); // if Successful, return the deleted data
+                return Ok(res); // if Successful, return the deleted data
             }
-            Err(err) => {
-                let not_found = err.to_string().to_lowercase().contains("not found");
-                if not_found {
-                    return Ok(HttpResponse::NotFound().json(ReturnError::<Delete> {
-                        error_msg: format!("User with id: {} not found", &new_user.id),
-                        values: Some(new_user),
-                    }));
-                }
-                return Ok(HttpResponse::BadRequest().json(ReturnError::<Delete> {
-                    error_msg: err.to_string(),
-                    values: Some(new_user),
-                }));
-            }
+            Err(err) => Err(ReturnError::<i32> {
+                error_msg: err.to_string(),
+                values: Some(id),
+            }),
         }
     }
-    pub async fn create(payload: web::Payload) -> Result<impl Responder> {
-        let mut json = web::BytesMut::new();
-        json = match deserialize_payload(json, payload).await {
-            Ok(res) => res,
-            Err(err) => {
-                return Ok(HttpResponse::BadRequest().json(err));
-            }
-        };
-
-        // body is loaded, now we can deserialize serde-json
-        let mut new_user = match serde_json::from_slice::<Create>(&json) {
-            Ok(res) => res,
-            Err(err) => {
-                return Ok(HttpResponse::BadRequest().json(ReturnError::<Create> {
-                    error_msg: format!("Invalid JSON: {}", err.to_string()),
-                    values: None,
-                }));
-            }
-        };
-
+    pub fn create(mut new_user: Create) -> Result<User, ReturnError<Create>> {
         let connection = &mut establish_connection();
 
         // Check if user already exists
         if user_exists(&new_user.email) {
-            return Ok(HttpResponse::Found().json(ReturnError::<Create> {
+            return Err(ReturnError::<Create> {
                 error_msg: format!("A user with email: {}, already exists", new_user.email),
                 values: Some(new_user),
-            }));
+            });
         }
 
         new_user = PasswordUtils::hash(new_user); // Hash password
@@ -101,17 +49,17 @@ impl UserController {
 
         match query.get_result::<User>(connection) {
             Ok(res) => {
-                return Ok(HttpResponse::Created().json(res));
+                return Ok(res);
             }
             Err(err) => {
-                return Ok(HttpResponse::BadRequest().json(ReturnError::<Create> {
+                return Err(ReturnError::<Create> {
                     error_msg: err.to_string(),
                     values: Some(new_user),
-                }));
+                });
             }
         }
     }
-    pub async fn create_default_admin(mut new_user: Create) -> bool {
+    pub fn create_default_admin(mut new_user: Create) -> bool {
         let connection = &mut establish_connection();
 
         // Check if user already exists
@@ -126,28 +74,7 @@ impl UserController {
             Err(_) => false,
         }
     }
-    pub async fn update(payload: web::Payload) -> Result<impl Responder> {
-        // Custom update struct
-
-        let mut json = web::BytesMut::new();
-
-        json = match deserialize_payload(json, payload).await {
-            Ok(res) => res,
-            Err(err) => {
-                return Ok(HttpResponse::BadRequest().json(err));
-            }
-        };
-        // body is loaded, now we can deserialize serde-json
-        let new_user = match serde_json::from_slice::<Update>(&json) {
-            Ok(res) => res,
-            Err(err) => {
-                return Ok(HttpResponse::BadRequest().json(ReturnError::<String> {
-                    error_msg: format!("Invalid JSON: {}", err.to_string()),
-                    values: None,
-                }));
-            }
-        };
-
+    pub fn update(new_user: Update) -> Result<User, ReturnError<Update>> {
         let connection = &mut establish_connection();
         match update(dsl::users)
             .set(&new_user)
@@ -155,24 +82,17 @@ impl UserController {
             .get_result::<User>(connection)
         {
             Ok(res) => {
-                return Ok(HttpResponse::Ok().json(res));
+                return Ok(res);
             }
             Err(err) => {
-                let not_found = err.to_string().to_lowercase().contains("not found");
-                if not_found {
-                    return Ok(HttpResponse::NotFound().json(ReturnError {
-                        error_msg: format!("User with id: {} not found", &new_user.id),
-                        values: Some(new_user),
-                    }));
-                }
-                return Ok(HttpResponse::BadRequest().json(ReturnError {
+                return Err(ReturnError {
                     error_msg: err.to_string(),
                     values: Some(new_user),
-                }));
+                });
             }
         }
     }
-    pub async fn find_all(query_params: web::Query<QueryParams>) -> Result<impl Responder> {
+    pub fn find_all(query_params: QueryParams) -> Result<Vec<User>, ReturnError<QueryParams>> {
         let connection = &mut establish_connection();
         let mut query = dsl::users.into_boxed();
 
@@ -186,31 +106,30 @@ impl UserController {
         }
 
         match query.load::<User>(connection) {
-            Ok(results) => return Ok(HttpResponse::Ok().json(results)),
+            Ok(results) => return Ok(results),
             Err(err) => {
-                return Ok(HttpResponse::BadRequest().json(ReturnError::<QueryParams> {
+                return Err(ReturnError::<QueryParams> {
                     error_msg: err.to_string(),
-                    values: Some(query_params.0),
-                }));
+                    values: Some(query_params),
+                });
             }
         }
     }
-    pub async fn find(user_id: web::Path<i32>) -> Result<impl Responder> {
-        let id = user_id.into_inner();
+    pub fn find(user_id: i32) -> Result<User, ReturnError<i32>> {
         let connection: &mut PgConnection = &mut establish_connection();
         let mut query = dsl::users.into_boxed();
-        query = query.filter(dsl::id.eq(id)); // Search for a unique user
+        query = query.filter(dsl::id.eq(user_id)); // Search for a unique user
         match query.first::<User>(connection) {
-            Ok(results) => return Ok(HttpResponse::Ok().json(results)),
+            Ok(results) => return Ok(results),
             Err(err) => {
-                return Ok(HttpResponse::NotFound().json(ReturnError::<i32> {
+                return Err(ReturnError::<i32> {
                     error_msg: err.to_string(),
-                    values: Some(id),
-                }));
+                    values: Some(user_id),
+                });
             }
         }
     }
-    pub async fn find_by_email(user_email: String) -> Result<User, ReturnError<String>> {
+    pub fn find_by_email(user_email: String) -> Result<User, ReturnError<String>> {
         let connection: &mut PgConnection = &mut establish_connection();
         let mut query = dsl::users.into_boxed();
         query = query.filter(dsl::email.eq(&user_email)); // Search for a unique user

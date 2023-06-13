@@ -3,7 +3,7 @@ use actix_server::config::query_cfg;
 use actix_server::controller::users::structs::Create;
 use actix_server::controller::users::user_controller;
 use actix_server::middlewares::CHECK_LOGIN;
-use actix_server::routes::scopes::{login_route, posts_route, users_route};
+use actix_server::routes::scopes::Scopes;
 
 use actix_web::middleware::{Compress, DefaultHeaders, Logger, NormalizePath};
 use actix_web::{App, HttpServer};
@@ -25,10 +25,9 @@ async fn main() -> std::io::Result<()> {
             .wrap(NormalizePath::new(
                 actix_web::middleware::TrailingSlash::Always,
             )) // Normalize trailing slash(Resolve the "/" at ending of a endpoint)
-            .service(posts_route().wrap(CHECK_LOGIN))
-            .service(users_route().wrap(CHECK_LOGIN))
-            .service(login_route())
-        // .wrap(HttpAuthentication::bearer(bearer))
+            .service(Scopes::posts_scope().wrap(CHECK_LOGIN))
+            .service(Scopes::users_scope().wrap(CHECK_LOGIN))
+            .service(Scopes::login_scope())
     })
     .bind(("127.0.0.1", 8080))?
     .run()
@@ -49,7 +48,6 @@ async fn init_server() -> bool {
             updated_at: None,
         }
     })
-    .await
 }
 // cargo watch -c -w src -x run
 //     let debug = diesel::debug_query::<diesel::pg::Pg, _>(&query);

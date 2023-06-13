@@ -1,2 +1,2 @@
 pub mod post_controller;
-mod structs;
+pub mod structs;
