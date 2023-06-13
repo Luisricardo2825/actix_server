@@ -6,10 +6,10 @@ Route for posts.
 **Endpoint**: `/posts`
 ### Methods:
  ```
- * GET - FIXME: Add query params to return 1 post
+ * GET
  * POST
  * PATCH
- * DELETE - TODO: Delete route
+ * DELETE
  ```
 ```
 return actix_web::Scope
