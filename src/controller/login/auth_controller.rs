@@ -2,6 +2,7 @@ use std::env;
 
 use crate::{
     controller::users::{user_controller::UserController, utils::password::PasswordUtils},
+    models::users_model::User,
     routes::utils::reponses::ReturnError,
 };
 use dotenvy::dotenv;
@@ -17,15 +18,16 @@ pub struct LoginData {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct Claims {
-    login_data: LoginData,
-    exp: usize,
+pub struct Claims {
+    pub exp: usize,
+    pub api_rights: bool,
+    pub admin_rights: bool,
 }
 
 impl AuthController {
-    pub async fn login(login_data: LoginData) -> Result<LoginData, ReturnError<LoginData>> {
+    pub async fn login(login_data: LoginData) -> Result<User, ReturnError<LoginData>> {
         let err_default = ReturnError::<LoginData> {
-            error_msg: "Invalid user or password".to_string(),
+            error_msg: "Invalid email or password".to_string(),
             values: Some(login_data.clone()),
         };
 
@@ -35,16 +37,16 @@ impl AuthController {
             Err(_) => return Err(err_default),
         };
 
-        let valid_pass = PasswordUtils::verify(login_data.password.clone(), user.password);
+        let valid_pass = PasswordUtils::verify(&login_data.password, &user.password);
 
         if !valid_pass {
             return Err(err_default);
         }
 
-        Ok(login_data)
+        Ok(user)
     }
 
-    pub fn verify_jwt(token: String) -> bool {
+    pub fn verify_jwt(token: String) -> (bool, Option<Claims>) {
         dotenv().ok();
         let secret = env::var("SECRET").expect("SALT must be set");
 
@@ -57,8 +59,8 @@ impl AuthController {
         );
 
         match token {
-            Ok(_) => true,
-            Err(_) => false,
+            Ok(token) => (true, Some(token.claims)),
+            Err(_) => (false, None),
         }
     }
 }

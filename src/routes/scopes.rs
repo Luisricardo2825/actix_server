@@ -26,7 +26,7 @@ impl Scopes {
             .route("/", web::post().to(PostsRoute::create))
             .route("/{id}/", web::get().to(PostsRoute::find))
             .route("/", web::get().to(PostsRoute::find_all))
-            .route("/", web::patch().to(PostsRoute::update))
+            .route("/{id}/", web::patch().to(PostsRoute::update))
             .route("/", web::delete().to(PostsRoute::delete))
     }
 
@@ -37,8 +37,8 @@ impl Scopes {
             .route("/", web::post().to(UsersRoute::create))
             .route("/{id}/", web::get().to(UsersRoute::find))
             .route("/", web::get().to(UsersRoute::find_all))
-            .route("/", web::patch().to(UsersRoute::update))
-            .route("/", web::delete().to(UsersRoute::delete))
+            .route("/{id}/", web::patch().to(UsersRoute::update))
+            .route("/{id}/", web::delete().to(UsersRoute::delete))
     }
 
     pub fn login_scope() -> actix_web::Scope {

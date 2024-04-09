@@ -55,13 +55,16 @@ impl PostsRoute {
             }
         }
     }
-    pub async fn update(payload: web::Payload) -> Result<impl Responder> {
-        let new_post = match get_body::<Update>(payload).await {
+    pub async fn update(post_id: web::Path<i32>, payload: web::Payload) -> Result<impl Responder> {
+        let post_id = post_id.into_inner();
+        let mut new_post = match get_body::<Update>(payload).await {
             Ok(res) => res,
             Err(err) => return Ok(HttpResponse::BadRequest().json(err)),
         };
 
-        match PostController::update(new_post) {
+        new_post.updated_at = Some(chrono::Utc::now().naive_utc()); // update the updated_at field with the current time
+
+        match PostController::update(post_id, new_post) {
             Ok(res) => {
                 return Ok(HttpResponse::Ok().json(res));
             }
@@ -70,7 +73,7 @@ impl PostsRoute {
                 let val = err.values.clone().unwrap();
                 if not_found {
                     return Ok(HttpResponse::NotFound().json(ReturnError {
-                        error_msg: format!("post with id: {} not found", &val.id),
+                        error_msg: format!("post with id: {} not found", &post_id),
                         values: Some(val),
                     }));
                 }

@@ -7,7 +7,6 @@ use crate::routes::utils::reponses::ReturnError;
 use crate::utils::get_body::get_body;
 
 use crate::controller::users::structs::Create;
-use crate::controller::users::structs::Delete;
 use crate::controller::users::structs::QueryParams;
 use crate::controller::users::structs::Update;
 use crate::controller::users::user_controller::UserController;
@@ -15,28 +14,24 @@ use crate::controller::users::user_controller::UserController;
 pub struct UsersRoute;
 
 impl UsersRoute {
-    pub async fn delete(payload: web::Payload) -> Result<impl Responder> {
+    pub async fn delete(user_id: web::Path<i32>) -> Result<impl Responder> {
         // body is loaded, now we can deserialize serde-json
-        let new_user = match get_body::<Delete>(payload).await {
-            Ok(res) => res,
-            Err(err) => return Ok(HttpResponse::BadRequest().json(err)),
-        };
-
-        match UserController::delete(new_user.id) {
+        let user_id = user_id.into_inner();
+        match UserController::delete(user_id) {
             Ok(res) => {
                 return Ok(HttpResponse::Ok().json(res)); // if Successful, return the deleted data
             }
             Err(err) => {
                 let not_found = err.to_string().to_lowercase().contains("not found");
                 if not_found {
-                    return Ok(HttpResponse::NotFound().json(ReturnError::<Delete> {
-                        error_msg: format!("User with id: {} not found", &new_user.id),
-                        values: Some(new_user),
+                    return Ok(HttpResponse::NotFound().json(ReturnError::<i32> {
+                        error_msg: format!("User with id: {} not found", &user_id),
+                        values: Some(user_id),
                     }));
                 }
-                return Ok(HttpResponse::BadRequest().json(ReturnError::<Delete> {
+                return Ok(HttpResponse::BadRequest().json(ReturnError::<i32> {
                     error_msg: err.to_string(),
-                    values: Some(new_user),
+                    values: Some(user_id),
                 }));
             }
         }
@@ -56,13 +51,15 @@ impl UsersRoute {
             }
         }
     }
-    pub async fn update(payload: web::Payload) -> Result<impl Responder> {
-        let new_user = match get_body::<Update>(payload).await {
+    pub async fn update(user_id: web::Path<i32>, payload: web::Payload) -> Result<impl Responder> {
+        let user_id = user_id.into_inner();
+        let mut new_user = match get_body::<Update>(payload).await {
             Ok(res) => res,
             Err(err) => return Ok(HttpResponse::BadRequest().json(err)),
         };
 
-        match UserController::update(new_user) {
+        new_user.updated_at = Some(chrono::Utc::now().naive_utc());
+        match UserController::update(user_id, new_user) {
             Ok(res) => {
                 return Ok(HttpResponse::Ok().json(res));
             }
@@ -71,12 +68,12 @@ impl UsersRoute {
                 let val = err.values.clone().unwrap();
                 if not_found {
                     return Ok(HttpResponse::NotFound().json(ReturnError {
-                        error_msg: format!("User with id: {} not found", &val.id),
+                        error_msg: format!("User with id: {} not found", user_id),
                         values: Some(val),
                     }));
                 }
                 return Ok(HttpResponse::BadRequest().json(ReturnError {
-                    error_msg: err.to_string(),
+                    error_msg: err.to_string() + "Nada para o id:{user_id}",
                     values: Some(val),
                 }));
             }
@@ -91,7 +88,8 @@ impl UsersRoute {
         }
     }
     pub async fn find(user_id: web::Path<i32>) -> Result<impl Responder> {
-        match UserController::find(user_id.into_inner()) {
+        let user_id = user_id.into_inner();
+        match UserController::find(user_id) {
             Ok(results) => return Ok(HttpResponse::Ok().json(results)),
             Err(err) => {
                 return Ok(HttpResponse::NotFound().json(err));

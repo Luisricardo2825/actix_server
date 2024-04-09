@@ -52,11 +52,11 @@ impl PostController {
             }
         }
     }
-    pub fn update(new_post: Update) -> Result<Post, ReturnError<Update>> {
+    pub fn update(post_id: i32, new_post: Update) -> Result<Post, ReturnError<Update>> {
         let connection = &mut establish_connection();
         match update(dsl::posts)
             .set(&new_post)
-            .filter(dsl::id.eq(&new_post.id))
+            .filter(dsl::id.eq(post_id))
             .get_result::<Post>(connection)
         {
             Ok(res) => {

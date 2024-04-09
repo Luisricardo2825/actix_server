@@ -44,7 +44,7 @@ impl UserController {
             });
         }
 
-        new_user = PasswordUtils::hash(new_user); // Hash password
+        new_user.password = PasswordUtils::hash(new_user.password); // Hash password
         let query = insert_into(dsl::users).values(&new_user);
 
         match query.get_result::<User>(connection) {
@@ -67,18 +67,22 @@ impl UserController {
             return false;
         }
 
-        new_user = PasswordUtils::hash(new_user); // Hash password
+        new_user.password = PasswordUtils::hash(new_user.password); // Hash password
         let query = insert_into(dsl::users).values(&new_user);
         match query.get_result::<User>(connection) {
             Ok(_) => return true,
             Err(_) => false,
         }
     }
-    pub fn update(new_user: Update) -> Result<User, ReturnError<Update>> {
+    pub fn update(id: i32, mut new_user: Update) -> Result<User, ReturnError<Update>> {
+        if new_user.password.is_some() {
+            new_user.password = Some(PasswordUtils::hash(new_user.password.unwrap()));
+        }
+
         let connection = &mut establish_connection();
         match update(dsl::users)
             .set(&new_user)
-            .filter(dsl::id.eq(&new_user.id))
+            .filter(dsl::id.eq(id))
             .get_result::<User>(connection)
         {
             Ok(res) => {

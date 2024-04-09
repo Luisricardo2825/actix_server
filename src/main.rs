@@ -14,7 +14,7 @@ async fn main() -> std::io::Result<()> {
     env_logger::init_from_env(Env::default().default_filter_or("info"));
 
     if init_server().await {
-        println!("Created default admin");
+        info!("Created default user!");
     }
     HttpServer::new(move || {
         App::new()
@@ -33,21 +33,23 @@ async fn main() -> std::io::Result<()> {
     .run()
     .await
 }
+use log::info;
 
 async fn init_server() -> bool {
-    user_controller::UserController::create_default_admin({
-        Create {
-            id: Some(0),
-            name: "admin".to_string(),
-            email: "admin@adm.com".to_string(),
-            password: "admin".to_string(),
-            blocked: None,
-            admin: Some(true),
-            api_rights: Some(true),
-            created_at: None,
-            updated_at: None,
-        }
-    })
+    let created = user_controller::UserController::create_default_admin({
+            Create {
+                id: Some(0),
+                name: "admin".to_string(),
+                email: "admin@adm.com".to_string(),
+                password: "admin".to_string(),
+                blocked: None,
+                admin: Some(true),
+                api_rights: Some(true),
+                created_at: None,
+                updated_at: None,
+            }
+        });
+        created
 }
 // cargo watch -c -w src -x run
 //     let debug = diesel::debug_query::<diesel::pg::Pg, _>(&query);

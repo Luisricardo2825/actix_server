@@ -5,8 +5,17 @@ use dotenvy::dotenv;
 use jsonwebtoken::{encode, EncodingKey, Header};
 use serde::{Deserialize, Serialize};
 
-use crate::{controller::login::auth_controller::LoginData, utils::get_body::get_body};
+use crate::{
+    controller::login::auth_controller::{AuthController, Claims, LoginData},
+    models::users_model::User,
+    utils::get_body::get_body,
+};
 
+#[derive(Serialize, Deserialize)]
+
+struct TokenReturn {
+    token: String,
+}
 pub struct AuthService;
 
 impl AuthService {
@@ -16,26 +25,30 @@ impl AuthService {
             Err(err) => return Ok(HttpResponse::BadRequest().json(err)),
         };
 
-        let res = HttpResponse::Accepted().body(generate_jwt(login_data));
+        let user = AuthController::login(login_data).await;
+        let user = match user {
+            Ok(user) => user,
+            Err(err) => return Ok(HttpResponse::NotFound().json(err)),
+        };
+
+        let res = HttpResponse::Accepted().json(TokenReturn {
+            token: generate_jwt(user),
+        });
 
         Ok(res)
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-struct Claims {
-    login_data: LoginData,
-    exp: usize,
-}
-fn generate_jwt(user_data: LoginData) -> String {
+fn generate_jwt(user_data: User) -> String {
     dotenv().ok();
     let secret = env::var("SECRET").expect("SALT must be set");
 
     let now = chrono::Utc::now() + chrono::Duration::days(1);
 
     let my_claims = Claims {
-        login_data: user_data,
         exp: now.timestamp() as usize,
+        api_rights: user_data.api_rights,
+        admin_rights: user_data.admin,
     };
 
     let token = encode(

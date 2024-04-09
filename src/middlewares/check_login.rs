@@ -3,7 +3,7 @@ use std::future::{ready, Ready};
 use actix_web::{
     body::EitherBody,
     dev::{self, Service, ServiceRequest, ServiceResponse, Transform},
-    Error, HttpResponse,
+    Error, HttpMessage, HttpResponse,
 };
 use futures_util::future::LocalBoxFuture;
 
@@ -70,8 +70,8 @@ where
             .to_str()
             .expect("Error getting token");
 
-        let authorized = AuthController::verify_jwt(token.to_owned());
-        
+        let (authorized, claims) = AuthController::verify_jwt(token.to_owned());
+
         if !authorized {
             let (request, _pl) = request.into_parts();
             error_ret.error_msg = "Token invalid".to_string();
@@ -82,6 +82,20 @@ where
 
             return Box::pin(async { Ok(ServiceResponse::new(request, response)) });
         }
+
+        let claims = claims.unwrap();
+        if !claims.api_rights {
+            let (request, _pl) = request.into_parts();
+            error_ret.error_msg = "Not authorized".to_string();
+            let response = HttpResponse::Unauthorized()
+                .json(error_ret)
+                // constructed responses map to "right" body
+                .map_into_right_body();
+
+            return Box::pin(async { Ok(ServiceResponse::new(request, response)) });
+        }
+
+        request.extensions_mut().insert(claims);
 
         let res = self.service.call(request);
 
