@@ -17,7 +17,7 @@ use super::structs::Update;
 pub struct PostController;
 
 impl PostController {
-    pub fn delete(id: i32) -> Result<Post, ReturnError<i32>> {
+    pub fn delete(id: i32) -> Result<Post, ReturnError> {
         let connection = &mut establish_connection();
         match delete(dsl::posts)
             .filter(dsl::id.eq(&id))
@@ -27,14 +27,11 @@ impl PostController {
                 return Ok(res); // if Successful, return the deleted data
             }
             Err(err) => {
-                return Err(ReturnError::<i32> {
-                    error_msg: err.to_string(),
-                    values: Some(id),
-                }); // if Successful, return the ID of the inserted post
+                return Err(ReturnError::new(err.to_string(), id)); // if Successful, return the ID of the inserted post
             }
         }
     }
-    pub fn create(new_post: Create) -> Result<Post, ReturnError<Create>> {
+    pub fn create(new_post: Create) -> Result<Post, ReturnError> {
         let connection = &mut establish_connection();
         match insert_into(dsl::posts)
             .values(&new_post)
@@ -45,14 +42,11 @@ impl PostController {
                 // if Successful, return the ID of the inserted post
             }
             Err(err) => {
-                return Err(ReturnError::<Create> {
-                    error_msg: err.to_string(),
-                    values: Some(new_post),
-                }); // if Successful, return the ID of the inserted post
+                return Err(ReturnError::new(err.to_string(), new_post)); // if Successful, return the ID of the inserted post
             }
         }
     }
-    pub fn update(post_id: i32, new_post: Update) -> Result<Post, ReturnError<Update>> {
+    pub fn update(post_id: i32, new_post: Update) -> Result<Post, ReturnError> {
         let connection = &mut establish_connection();
         match update(dsl::posts)
             .set(&new_post)
@@ -63,14 +57,11 @@ impl PostController {
                 return Ok(res); // if Successful, return the ID of the inserted post
             }
             Err(err) => {
-                return Err(ReturnError {
-                    error_msg: err.to_string(),
-                    values: Some(new_post),
-                }); // if Successful, return the ID of the inserted post
+                return Err(ReturnError::new(err.to_string(), new_post)); // if Successful, return the ID of the inserted post
             }
         }
     }
-    pub fn find_all(query_params: QueryParams) -> Result<Vec<Post>, ReturnError<QueryParams>> {
+    pub fn find_all(query_params: QueryParams) -> Result<Vec<Post>, ReturnError> {
         let connection = &mut establish_connection();
         let mut query = dsl::posts.into_boxed();
 
@@ -86,24 +77,18 @@ impl PostController {
         match query.load::<Post>(connection) {
             Ok(results) => return Ok(results),
             Err(err) => {
-                return Err(ReturnError {
-                    error_msg: err.to_string(),
-                    values: Some(query_params),
-                }); // if Successful, return the ID of the inserted post
+                return Err(ReturnError::new(err.to_string(), query_params)); // if Successful, return the ID of the inserted post
             }
         }
     }
-    pub fn find(id: i32) -> Result<Post, ReturnError<i32>> {
+    pub fn find(id: i32) -> Result<Post, ReturnError> {
         let connection: &mut PgConnection = &mut establish_connection();
         let mut query = dsl::posts.into_boxed();
         query = query.filter(dsl::id.eq(id)); // Search for a unique post
         match query.first::<Post>(connection) {
             Ok(results) => return Ok(results),
             Err(err) => {
-                return Err(ReturnError::<i32> {
-                    error_msg: err.to_string(),
-                    values: Some(id),
-                }); // if Successful, return the ID of the inserted post
+                return Err(ReturnError::new(err.to_string(), id)); // if Successful, return the ID of the inserted post
             }
         }
     }

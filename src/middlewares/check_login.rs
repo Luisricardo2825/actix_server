@@ -48,14 +48,19 @@ where
     fn call(&self, request: ServiceRequest) -> Self::Future {
         // Check if has token
         let is_logged_in = request.headers().get("Authorization").is_some();
-        let mut error_ret = ReturnError::<String> {
+        let mut error_ret = ReturnError {
             error_msg: "Token missing".to_string(),
             values: None,
         };
         // Check if token is missing
         if !is_logged_in {
             let (request, _pl) = request.into_parts();
+            // Get path variable
+            let path = request.path().to_string();
+            let path = path.split("/").filter(|x| !x.is_empty()).last().unwrap();
+
             error_ret.error_msg = "Token missing".to_string();
+            error_ret.values = Some(path.into());
             let response = HttpResponse::Unauthorized()
                 .json(error_ret)
                 // constructed responses map to "right" body

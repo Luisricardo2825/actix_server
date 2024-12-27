@@ -28,14 +28,14 @@ impl PostsRoute {
             Err(err) => {
                 let not_found = err.to_string().to_lowercase().contains("not found");
                 if not_found {
-                    return Ok(HttpResponse::NotFound().json(ReturnError::<Delete> {
+                    return Ok(HttpResponse::NotFound().json(ReturnError {
                         error_msg: format!("post with id: {} not found", &new_post.id),
-                        values: Some(new_post),
+                        values: Some(serde_json::to_value(new_post).unwrap()),
                     }));
                 }
-                return Ok(HttpResponse::BadRequest().json(ReturnError::<Delete> {
+                return Ok(HttpResponse::BadRequest().json(ReturnError {
                     error_msg: err.to_string(),
-                    values: Some(new_post),
+                    values: Some(serde_json::to_value(new_post).unwrap()),
                 }));
             }
         }

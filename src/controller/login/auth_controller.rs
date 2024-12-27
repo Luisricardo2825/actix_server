@@ -25,11 +25,9 @@ pub struct Claims {
 }
 
 impl AuthController {
-    pub async fn login(login_data: LoginData) -> Result<User, ReturnError<LoginData>> {
-        let err_default = ReturnError::<LoginData> {
-            error_msg: "Invalid email or password".to_string(),
-            values: Some(login_data.clone()),
-        };
+    pub async fn login(login_data: LoginData) -> Result<User, ReturnError> {
+        let err_default =
+            ReturnError::new("Invalid email or password".to_string(), login_data.clone());
 
         let user_email = login_data.email.clone();
         let user = match UserController::find_by_email(user_email) {

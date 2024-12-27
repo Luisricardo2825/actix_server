@@ -2,7 +2,7 @@ use chrono::NaiveDateTime;
 use diesel::{AsChangeset, Insertable};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, AsChangeset, Clone)]
+#[derive(Serialize, Deserialize, AsChangeset, Clone, Debug)]
 #[diesel(table_name = crate::schema::users)]
 #[serde(rename_all = "camelCase")]
 pub struct Update {
@@ -15,7 +15,7 @@ pub struct Update {
     pub updated_at: Option<NaiveDateTime>,
 }
 
-#[derive(Serialize, Deserialize, Insertable, Clone)]
+#[derive(Serialize, Deserialize, Insertable, Clone, Debug)]
 #[diesel(table_name = crate::schema::users)]
 #[serde(rename_all = "camelCase")]
 pub struct Create {

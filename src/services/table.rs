@@ -3,22 +3,26 @@ use actix_web::HttpResponse;
 use actix_web::Responder;
 use actix_web::Result;
 
+use crate::controller::tables::structs::CreateTableRequest;
+use crate::controller::tables::table_controller::TableController;
 use crate::controller::Controller;
 use crate::routes::utils::reponses::ReturnError;
 use crate::utils::get_body::get_body;
 
-use crate::controller::users::structs::Create;
-use crate::controller::users::structs::QueryParams;
-use crate::controller::users::structs::Update;
-use crate::controller::users::user_controller::UserController;
+use crate::controller::tables::structs::Delete;
+use crate::controller::tables::structs::QueryParams;
+use crate::controller::tables::structs::Update;
 
-pub struct UsersRoute;
+pub struct TableRoute;
 
-impl UsersRoute {
-    pub async fn delete(user_id: web::Path<i32>) -> Result<impl Responder> {
-        // body is loaded, now we can deserialize serde-json
-        let user_id = user_id.into_inner();
-        match UserController::delete(user_id) {
+impl TableRoute {
+    pub async fn delete(payload: web::Payload) -> Result<impl Responder> {
+        let table = match get_body::<Delete>(payload).await {
+            Ok(res) => res,
+            Err(err) => return Ok(HttpResponse::BadRequest().json(err)),
+        };
+
+        match TableController::delete(table.id) {
             Ok(res) => {
                 return Ok(HttpResponse::Ok().json(res)); // if Successful, return the deleted data
             }
@@ -26,24 +30,24 @@ impl UsersRoute {
                 let not_found = err.to_string().to_lowercase().contains("not found");
                 if not_found {
                     return Ok(HttpResponse::NotFound().json(ReturnError {
-                        error_msg: format!("User with id: {} not found", &user_id),
-                        values: Some(user_id.into()),
+                        error_msg: format!("table with id: {} not found", &table.id),
+                        values: Some(serde_json::to_value(table).unwrap()),
                     }));
                 }
                 return Ok(HttpResponse::BadRequest().json(ReturnError {
                     error_msg: err.to_string(),
-                    values: Some(user_id.into()),
+                    values: Some(serde_json::to_value(table).unwrap()),
                 }));
             }
         }
     }
     pub async fn create(payload: web::Payload) -> Result<impl Responder> {
-        let new_user = match get_body::<Create>(payload).await {
+        let table = match get_body::<CreateTableRequest>(payload).await {
             Ok(res) => res,
             Err(err) => return Ok(HttpResponse::BadRequest().json(err)),
         };
 
-        match UserController::create(new_user) {
+        match TableController::create(table) {
             Ok(res) => {
                 return Ok(HttpResponse::Created().json(res));
             }
@@ -52,15 +56,16 @@ impl UsersRoute {
             }
         }
     }
-    pub async fn update(user_id: web::Path<i32>, payload: web::Payload) -> Result<impl Responder> {
-        let user_id = user_id.into_inner();
-        let mut new_user = match get_body::<Update>(payload).await {
+    pub async fn update(post_id: web::Path<i32>, payload: web::Payload) -> Result<impl Responder> {
+        let post_id = post_id.into_inner();
+        let mut table = match get_body::<Update>(payload).await {
             Ok(res) => res,
             Err(err) => return Ok(HttpResponse::BadRequest().json(err)),
         };
 
-        new_user.updated_at = Some(chrono::Utc::now().naive_utc());
-        match UserController::update(user_id, new_user) {
+        table.updated_at = Some(chrono::Utc::now().naive_utc()); // update the updated_at field with the current time
+
+        match TableController::update(post_id, table) {
             Ok(res) => {
                 return Ok(HttpResponse::Ok().json(res));
             }
@@ -69,28 +74,35 @@ impl UsersRoute {
                 let val = err.values.clone().unwrap();
                 if not_found {
                     return Ok(HttpResponse::NotFound().json(ReturnError {
-                        error_msg: format!("User with id: {} not found", user_id),
+                        error_msg: format!("post with id: {} not found", &post_id),
                         values: Some(val),
                     }));
                 }
                 return Ok(HttpResponse::BadRequest().json(ReturnError {
-                    error_msg: err.to_string() + "Nada para o id:{user_id}",
+                    error_msg: err.to_string(),
                     values: Some(val),
                 }));
             }
         }
     }
     pub async fn find_all(query_params: web::Query<QueryParams>) -> Result<impl Responder> {
-        match UserController::find_all(query_params.into_inner()) {
+        match TableController::find_all(query_params.into_inner()) {
             Ok(results) => return Ok(HttpResponse::Ok().json(results)),
             Err(err) => {
                 return Ok(HttpResponse::BadRequest().json(err));
             }
         }
     }
-    pub async fn find(user_id: web::Path<i32>) -> Result<impl Responder> {
-        let user_id = user_id.into_inner();
-        match UserController::find(user_id) {
+    pub async fn find(post_id: web::Path<i32>) -> Result<impl Responder> {
+        match TableController::find(post_id.into_inner()) {
+            Ok(results) => return Ok(HttpResponse::Ok().json(results)),
+            Err(err) => {
+                return Ok(HttpResponse::NotFound().json(err));
+            }
+        }
+    }
+    pub async fn find_table_by_name(table_id: web::Path<String>) -> Result<impl Responder> {
+        match TableController::find_by_name(table_id.into_inner()) {
             Ok(results) => return Ok(HttpResponse::Ok().json(results)),
             Err(err) => {
                 return Ok(HttpResponse::NotFound().json(err));
