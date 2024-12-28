@@ -1,8 +1,15 @@
 use crate::controller::{fields::structs::CreateField, tables::structs::Create};
 
+use super::string_utils::to_snake_case;
+
 pub struct TableBuilder {
     pub table: Create,
     pub fields: Vec<CreateField>,
+}
+
+pub struct AddField {
+    pub table: String,
+    pub field: CreateField,
 }
 
 impl TableBuilder {
@@ -62,5 +69,28 @@ impl TableBuilder {
         }
 
         str_constraints
+    }
+}
+
+impl AddField {
+    pub fn new<S: AsRef<str>>(table: S, field: &CreateField) -> Self {
+        Self {
+            table: table.as_ref().to_string(),
+            field: field.clone(),
+        }
+    }
+    pub fn build(&self) -> String {
+        let mut str_field = String::new();
+
+        str_field.push_str(&format!("ALTER TABLE {}", self.table));
+        str_field.push_str(&format!(
+            " ADD COLUMN {} {} {}",
+            to_snake_case(&self.field.name),
+            self.field.field_type.to_string().unwrap().to_uppercase(),
+            TableBuilder::get_field_constraints(&self.field)
+        ));
+        str_field.push_str(";");
+
+        str_field
     }
 }

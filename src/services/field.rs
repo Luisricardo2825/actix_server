@@ -16,10 +16,10 @@ pub struct FieldRoute;
 impl FieldRoute {
     // Fields routes
     pub async fn create(
-        table_id: web::Path<i32>,
+        path: web::Path<(String,)>,
         payload: Either<web::Json<CreateFieldWithType>, web::Json<Vec<CreateFieldWithType>>>,
     ) -> Result<impl Responder> {
-        let table_id = table_id.into_inner();
+        let (table_name,) = path.into_inner();
         use std::result::Result::Ok;
 
         match payload {
@@ -33,7 +33,7 @@ impl FieldRoute {
                 }
                 let table = table.unwrap();
 
-                match FieldController::create_field(table_id, table) {
+                match FieldController::create_field(table_name, table) {
                     Ok(res) => {
                         return Ok(HttpResponse::Created().json(res));
                     }
@@ -59,7 +59,7 @@ impl FieldRoute {
                     }
                 }
                 let table: Vec<CreateField> = table.into_iter().map(|x| x.unwrap()).collect();
-                match FieldController::create_fields(table_id, table) {
+                match FieldController::create_fields(table_name, table) {
                     Ok(res) => {
                         return Ok(HttpResponse::Created().json(res));
                     }
@@ -70,22 +70,18 @@ impl FieldRoute {
             }
         }
     }
-    pub async fn find_by_name(
-        table_id: web::Path<i32>,
-        field_name: web::Path<String>,
-    ) -> Result<impl Responder> {
-        match FieldController::find_field_by_name(table_id.into_inner(), field_name.into_inner()) {
+    pub async fn find_by_name(path: web::Path<(String, String)>) -> Result<impl Responder> {
+        let (table_name, field_name) = path.into_inner();
+        match FieldController::find_field_by_name(table_name, field_name) {
             Ok(results) => return Ok(HttpResponse::Ok().json(results)),
             Err(err) => {
                 return Ok(HttpResponse::NotFound().json(err));
             }
         }
     }
-    pub async fn find(
-        table_id: web::Path<i32>,
-        field_id: web::Path<i32>,
-    ) -> Result<impl Responder> {
-        match FieldController::find_field(table_id.into_inner(), field_id.into_inner()) {
+    pub async fn find(path: web::Path<(String, i32)>) -> Result<impl Responder> {
+        let (table_name, field_id) = path.into_inner();
+        match FieldController::find_field(table_name, field_id) {
             Ok(results) => return Ok(HttpResponse::Ok().json(results)),
             Err(err) => {
                 return Ok(HttpResponse::NotFound().json(err));
@@ -93,10 +89,12 @@ impl FieldRoute {
         }
     }
     pub async fn find_all(
-        table_id: web::Path<i32>,
+        path: web::Path<(String,)>,
         query_params: web::Query<QueryParams>,
     ) -> Result<impl Responder> {
-        match FieldController::find_all_fields(table_id.into_inner(), query_params.into_inner()) {
+        let (table_name,) = path.into_inner();
+
+        match FieldController::find_all_fields(table_name, query_params.into_inner()) {
             Ok(results) => return Ok(HttpResponse::Ok().json(results)),
             Err(err) => {
                 return Ok(HttpResponse::NotFound().json(err));

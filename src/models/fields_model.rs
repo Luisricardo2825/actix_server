@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
     Serialize,
     Deserialize,
     Insertable,
+    Clone,
 )]
 #[serde(rename_all = "camelCase")]
 #[diesel(table_name = crate::schema::fields)]

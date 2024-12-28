@@ -3,28 +3,42 @@ use anyhow::Result;
 use diesel::delete;
 use diesel::insert_into;
 use diesel::prelude::*;
+use diesel::sql_query;
 use diesel::update;
 
 use super::structs::CreateField;
+use super::structs::CreateFieldWithType;
 use super::structs::QueryParams;
 use super::structs::UpdateField;
 use super::utils::set_table_for_vec;
-use super::utils::validate_fields;
 use crate::controller::tables::table_controller::TableController;
 use crate::models::db::connection::establish_connection;
 use crate::models::fields_model::Field;
 
 use crate::routes::utils::reponses::ReturnError;
 use crate::schema::fields::dsl as fields_dsl;
+use crate::utils::sql::AddField;
 
 pub struct FieldController;
 // Fields
 impl FieldController {
-    pub fn create_field(table_id: i32, mut new_field: CreateField) -> Result<Field, ReturnError> {
+    pub fn create_field<S: AsRef<str>>(
+        table_name: S,
+        mut new_field: CreateField,
+    ) -> Result<Field, ReturnError> {
         let connection = &mut establish_connection();
+
+        let table = TableController::find_by_name(table_name.as_ref());
+        let table_id = match table {
+            Ok(table) => table.id,
+            Err(err) => {
+                return Err(err);
+            }
+        };
         new_field.set_table(table_id);
 
-        let field_found = FieldController::find_field_by_name(table_id, &new_field.name);
+        let field_found =
+            FieldController::find_field_by_table_id_and_name(table_id, &new_field.name);
 
         if field_found.is_ok() {
             return Err(ReturnError {
@@ -39,14 +53,25 @@ impl FieldController {
             return Err(validation_result.unwrap_err());
         }
 
-        println!("{}", serde_json::to_string(&new_field).unwrap());
         let query = insert_into(fields_dsl::fields)
             .values(&new_field.to_create_field_with_type())
             .get_result::<Field>(connection);
 
         match query {
             Ok(res) => {
-                return Ok(res);
+                let add_field = AddField::new(table_name, &new_field);
+                let query = add_field.build();
+                let create_field = sql_query(query).execute(connection);
+                match create_field {
+                    Ok(_) => return Ok(res),
+                    Err(err) => {
+                        return Err(ReturnError {
+                            error_msg: err.to_string(),
+                            values: Some(serde_json::to_value(new_field).unwrap()),
+                        }
+                        .into());
+                    }
+                }
             }
             Err(err) => {
                 return Err(ReturnError {
@@ -58,11 +83,20 @@ impl FieldController {
         }
     }
 
-    pub fn create_fields(
-        table_id: i32,
+    pub fn create_fields<S: AsRef<str>>(
+        table_name: S,
         new_fields: Vec<CreateField>,
     ) -> Result<Vec<Field>, ReturnError> {
         let connection = &mut establish_connection();
+
+        let table = TableController::find_by_name(table_name.as_ref());
+        let table_id = match table {
+            Ok(table) => table.id,
+            Err(err) => {
+                return Err(err);
+            }
+        };
+
         let mut fields: Vec<CreateField> = new_fields;
 
         let set_table_for_vec_result = set_table_for_vec(table_id, &mut fields);
@@ -71,18 +105,22 @@ impl FieldController {
             return Err(set_table_for_vec_result.unwrap_err());
         }
 
-        let validation_result = validate_fields(&fields); // Validate fields
-        if validation_result.is_err() {
-            return Err(validation_result.unwrap_err());
-        }
+        // let validation_result = validate_fields(&fields); // Validate fields
+        // if validation_result.is_err() {
+        //     return Err(validation_result.unwrap_err());
+        // }
 
-        let fields: Vec<Field> = fields.into_iter().map(|field| field.to()).collect();
+        let fields: Vec<CreateFieldWithType> = fields
+            .into_iter()
+            .map(|field| field.to_create_field_with_type())
+            .collect();
         let query = insert_into(fields_dsl::fields)
             .values(&fields)
             .get_results::<Field>(connection);
 
         match query {
             Ok(res) => {
+                // TODO: Generete SQL to create the field
                 return Ok(res);
             }
             Err(err) => {
@@ -95,8 +133,17 @@ impl FieldController {
         }
     }
 
-    pub fn find_field(table_id: i32, field_id: i32) -> Result<Field, ReturnError> {
+    pub fn find_field<S: AsRef<str>>(table_name: S, field_id: i32) -> Result<Field, ReturnError> {
         let connection = &mut establish_connection();
+
+        let table = TableController::find_by_name(table_name.as_ref());
+        let table_id = match table {
+            Ok(table) => table.id,
+            Err(err) => {
+                return Err(err);
+            }
+        };
+
         let mut query = fields_dsl::fields.into_boxed();
         query = query.filter(fields_dsl::table_id.eq(table_id)); // Search for table_id
         query = query.filter(fields_dsl::id.eq(field_id)); // Search for field_id
@@ -112,7 +159,10 @@ impl FieldController {
         }
     }
 
-    pub fn find_field_by_name<S: AsRef<str>>(table_id: i32, name: S) -> Result<Field, ReturnError> {
+    pub fn find_field_by_table_id_and_name<S: AsRef<str>>(
+        table_id: i32,
+        name: S,
+    ) -> Result<Field, ReturnError> {
         let connection = &mut establish_connection();
         let mut query = fields_dsl::fields.into_boxed();
         query = query.filter(fields_dsl::table_id.eq(table_id)); // Search for table_id
@@ -129,11 +179,44 @@ impl FieldController {
         }
     }
 
-    pub fn find_all_fields(
-        table_id: i32,
+    pub fn find_field_by_name<S: AsRef<str>>(table_name: S, name: S) -> Result<Field, ReturnError> {
+        let connection = &mut establish_connection();
+
+        let table = TableController::find_by_name(table_name.as_ref());
+        let table_id = match table {
+            Ok(table) => table.id,
+            Err(err) => {
+                return Err(err);
+            }
+        };
+        let mut query = fields_dsl::fields.into_boxed();
+        query = query.filter(fields_dsl::table_id.eq(table_id)); // Search for table_id
+        query = query.filter(fields_dsl::name.eq(name.as_ref())); // Search for field_id
+        match query.first::<Field>(connection) {
+            Ok(results) => return Ok(results),
+            Err(err) => {
+                return Err(ReturnError {
+                    error_msg: err.to_string(),
+                    values: Some(table_id.into()),
+                }
+                .into()); // if Successful, return the ID of the inserted table
+            }
+        }
+    }
+
+    pub fn find_all_fields<S: AsRef<str>>(
+        table_name: S,
         query_params: QueryParams,
     ) -> Result<Vec<Field>, ReturnError> {
         let connection = &mut establish_connection();
+
+        let table = TableController::find_by_name(table_name.as_ref());
+        let table_id = match table {
+            Ok(table) => table.id,
+            Err(err) => {
+                return Err(err);
+            }
+        };
         let mut query = fields_dsl::fields.into_boxed();
 
         query = query.filter(fields_dsl::table_id.eq(table_id)); // Search for a unique table

@@ -11,6 +11,14 @@ pub mod reponses {
         pub values: Option<Value>,
     }
 
+    impl Default for ReturnError {
+        fn default() -> Self {
+            Self {
+                error_msg: "Unknown error".to_string(),
+                values: None,
+            }
+        }
+    }
     impl ReturnError {
         pub fn new<T: Serialize>(error_msg: String, values: T) -> Self {
             let values = Some(serde_json::to_value(values).unwrap());

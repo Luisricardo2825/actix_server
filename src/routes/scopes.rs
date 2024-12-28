@@ -60,7 +60,7 @@ impl Scopes {
     }
 
     pub fn fields_scope() -> actix_web::Scope {
-        actix_web::web::scope("/tables/{table_id}/fields")
+        actix_web::web::scope("/tables/{table_name}/fields")
             .route("/", web::post().to(FieldRoute::create))
             .route("/{id}/", web::get().to(FieldRoute::find))
             .route("/{field_name}/", web::get().to(FieldRoute::find_by_name))
@@ -76,7 +76,8 @@ impl Scopes {
         actix_web::web::scope("/custom")
             .route("/{table_name}/", web::get().to(CustomRoute::find_all))
             .route("/{table_name}/{id}/", web::get().to(CustomRoute::find_one))
-            .route("/", web::post().to(CustomRoute::create))
+            // .route("/", web::get().to(CustomRoute::find_test))
+            .route("/{table_name}/", web::post().to(CustomRoute::create))
     }
 
     pub fn login_scope() -> actix_web::Scope {

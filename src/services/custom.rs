@@ -5,6 +5,7 @@ use actix_web::Result;
 
 use serde_json::Value;
 
+use crate::models::db::connection::DbPool;
 use crate::utils::get_body::get_body;
 
 use crate::controller::custom::custom_controller::CustomController;
@@ -14,6 +15,7 @@ pub struct CustomRoute;
 
 impl CustomRoute {
     pub async fn find_all(
+        pool: web::Data<DbPool>,
         table_name: web::Path<String>,
         query_params: web::Query<QueryParams>,
     ) -> Result<impl Responder> {
@@ -26,13 +28,17 @@ impl CustomRoute {
     }
 
     pub async fn find_one(
-        path: web::Path<(String, String)>,
+        pool: web::Data<DbPool>,
+        path: web::Path<(String,)>,
         query_params: web::Query<QueryParams>,
     ) -> Result<impl Responder> {
-        let (table_name, field_id) = path.into_inner();
-        let field_id: Value = field_id.into();
-        println!("{table_name} {field_id}");
-        match CustomController::find_one(table_name, query_params.into_inner()).await {
+        let (table_name,) = path.into_inner();
+        let pool = pool.into_inner();
+        let controller = CustomController(pool);
+        match controller
+            .find_one(table_name, query_params.into_inner())
+            .await
+        {
             Ok(results) => return Ok(HttpResponse::Ok().json(results)),
             Err(err) => {
                 return Ok(HttpResponse::BadRequest().json(err));
@@ -41,15 +47,18 @@ impl CustomRoute {
     }
 
     pub async fn create(
-        query_params: web::Query<QueryParams>,
+        path: web::Path<(String,)>,
         payload: web::Payload,
+        query_params: web::Query<QueryParams>,
     ) -> Result<impl Responder> {
+        let (table_name,) = path.into_inner();
+
         let table = match get_body::<Value>(payload).await {
             Ok(res) => res,
             Err(err) => return Ok(HttpResponse::BadRequest().json(err)),
         };
 
-        match CustomController::create(query_params.into_inner(), table).await {
+        match CustomController::create(table_name, table, query_params.into_inner()).await {
             Ok(res) => {
                 return Ok(HttpResponse::Created().json(res));
             }

@@ -10,6 +10,7 @@ build = "build.rs"
 actix-web = "4.9.0"
 diesel = { version = "2.2.3", features = [
     "postgres",
+    "r2d2",
     "chrono",
     "serde_json",
 ] } # ORM

@@ -59,7 +59,7 @@ impl CreateFieldWithType {
             "boolean" => FieldType::Boolean,
             "date" => FieldType::Date,
             "time" => FieldType::Time,
-            "datetime" => FieldType::DateTime,
+            "Timestamp" => FieldType::Timestamp,
             "text" => FieldType::Text,
             "json" => FieldType::Json,
             "binary" => FieldType::Binary,
@@ -84,7 +84,7 @@ impl CreateFieldWithType {
     }
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Clone, Debug)]
 #[serde(untagged)]
 pub enum FieldType {
     String = 0,
@@ -93,7 +93,7 @@ pub enum FieldType {
     Boolean = 3,
     Date = 4,
     Time = 5,
-    DateTime = 6,
+    Timestamp = 6,
     Text = 7,
     Json = 8,
     Binary = 9,
@@ -124,15 +124,23 @@ impl<'de> Deserialize<'de> for FieldType {
                     "Boolean" => Ok(FieldType::Boolean),
                     "Date" => Ok(FieldType::Date),
                     "Time" => Ok(FieldType::Time),
-                    "DateTime" => Ok(FieldType::DateTime),
+                    "Timestamp" => Ok(FieldType::Timestamp),
                     "Text" => Ok(FieldType::Text),
                     "Json" => Ok(FieldType::Json),
                     "Binary" => Ok(FieldType::Binary),
                     _ => Err(de::Error::unknown_variant(
                         value,
                         &[
-                            "String", "Integer", "Float", "Boolean", "Date", "Time", "DateTime",
-                            "Text", "Json", "Binary",
+                            "String",
+                            "Integer",
+                            "Float",
+                            "Boolean",
+                            "Date",
+                            "Time",
+                            "Timestamp",
+                            "Text",
+                            "Json",
+                            "Binary",
                         ],
                     )),
                 }
@@ -146,27 +154,27 @@ impl<'de> Deserialize<'de> for FieldType {
 impl FieldType {
     pub fn to_string(&self) -> Result<String, ReturnError> {
         match self {
-            FieldType::String => Ok("string".to_string()),
-            FieldType::Integer => Ok("integer".to_string()),
-            FieldType::Float => Ok("float".to_string()),
-            FieldType::Boolean => Ok("boolean".to_string()),
-            FieldType::Date => Ok("date".to_string()),
-            FieldType::Time => Ok("time".to_string()),
-            FieldType::DateTime => Ok("datetime".to_string()),
-            FieldType::Text => Ok("text".to_string()),
-            FieldType::Json => Ok("json".to_string()),
-            FieldType::Binary => Ok("binary".to_string()),
+            FieldType::String => Ok("Varchar".to_string()),
+            FieldType::Integer => Ok("Integer".to_string()),
+            FieldType::Float => Ok("Float".to_string()),
+            FieldType::Boolean => Ok("Bool".to_string()),
+            FieldType::Date => Ok("Date".to_string()),
+            FieldType::Time => Ok("Time".to_string()),
+            FieldType::Timestamp => Ok("Timestamp".to_string()),
+            FieldType::Text => Ok("Text".to_string()),
+            FieldType::Json => Ok("Json".to_string()),
+            FieldType::Binary => Ok("bytea".to_string()),
         }
     }
     pub fn from_string(s: &str) -> Result<Self, ReturnError> {
-        match s {
+        match s.to_lowercase().as_str() {
             "string" => Ok(FieldType::String),
             "integer" => Ok(FieldType::Integer),
             "float" => Ok(FieldType::Float),
             "boolean" => Ok(FieldType::Boolean),
             "date" => Ok(FieldType::Date),
             "time" => Ok(FieldType::Time),
-            "datetime" => Ok(FieldType::DateTime),
+            "timestamp" => Ok(FieldType::Timestamp),
             "text" => Ok(FieldType::Text),
             "json" => Ok(FieldType::Json),
             "binary" => Ok(FieldType::Binary),
@@ -176,7 +184,6 @@ impl FieldType {
             )),
         }
     }
-
     pub fn check_if_exists(field_type: &String) -> bool {
         match field_type.as_str() {
             "string" => true,
@@ -185,81 +192,11 @@ impl FieldType {
             "boolean" => true,
             "date" => true,
             "time" => true,
-            "datetime" => true,
+            "Timestamp" => true,
             "text" => true,
             "json" => true,
             "binary" => true,
             _ => false,
-        }
-    }
-    pub fn check_value(&self, value: &str) -> Result<(), ReturnError> {
-        match self {
-            FieldType::String => Ok(()),
-            FieldType::Integer => {
-                if value.parse::<i32>().is_err() {
-                    return Err(ReturnError::new(
-                        "Invalid field type".to_string(),
-                        "Value is not an integer".to_string().as_str(),
-                    ));
-                }
-                Ok(())
-            }
-            FieldType::Float => {
-                if value.parse::<f32>().is_err() {
-                    return Err(ReturnError::new(
-                        "Invalid field type".to_string(),
-                        "Value is not a float".to_string().as_str(),
-                    ));
-                }
-                Ok(())
-            }
-            FieldType::Boolean => {
-                if value.parse::<bool>().is_err() {
-                    return Err(ReturnError::new(
-                        "Invalid field type".to_string(),
-                        "Value is not a boolean".to_string().as_str(),
-                    ));
-                }
-                Ok(())
-            }
-            FieldType::Date => {
-                if value.parse::<NaiveDateTime>().is_err() {
-                    return Err(ReturnError::new(
-                        "Invalid field type".to_string(),
-                        "Value is not a date".to_string().as_str(),
-                    ));
-                }
-                Ok(())
-            }
-            FieldType::Time => {
-                if value.parse::<NaiveDateTime>().is_err() {
-                    return Err(ReturnError::new(
-                        "Invalid field type".to_string(),
-                        "Value is not a time".to_string().as_str(),
-                    ));
-                }
-                Ok(())
-            }
-            FieldType::DateTime => {
-                if value.parse::<NaiveDateTime>().is_err() {
-                    return Err(ReturnError::new(
-                        "Invalid field type".to_string(),
-                        "Value is not a datetime".to_string().as_str(),
-                    ));
-                }
-                Ok(())
-            }
-            FieldType::Text => Ok(()),
-            FieldType::Json => {
-                if serde_json::from_str::<serde_json::Value>(value).is_err() {
-                    return Err(ReturnError::new(
-                        "Invalid field type".to_string(),
-                        "Value is not a json".to_string().as_str(),
-                    ));
-                }
-                Ok(())
-            }
-            FieldType::Binary => Ok(()),
         }
     }
 }
@@ -277,7 +214,7 @@ impl Into<String> for FieldType {
             FieldType::Boolean => "boolean".to_string(),
             FieldType::Date => "date".to_string(),
             FieldType::Time => "time".to_string(),
-            FieldType::DateTime => "datetime".to_string(),
+            FieldType::Timestamp => "Timestamp".to_string(),
             FieldType::Text => "text".to_string(),
             FieldType::Json => "json".to_string(),
             FieldType::Binary => "binary".to_string(),
@@ -294,7 +231,7 @@ impl Into<FieldType> for String {
             "boolean" => FieldType::Boolean,
             "date" => FieldType::Date,
             "time" => FieldType::Time,
-            "datetime" => FieldType::DateTime,
+            "Timestamp" => FieldType::Timestamp,
             "text" => FieldType::Text,
             "json" => FieldType::Json,
             "binary" => FieldType::Binary,

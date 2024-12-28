@@ -22,6 +22,13 @@ diesel::table! {
 }
 
 diesel::table! {
+    postagens (idpost) {
+        idpost -> Int4,
+        titulo -> Nullable<Text>,
+    }
+}
+
+diesel::table! {
     posts (id) {
         id -> Int4,
         title -> Varchar,
@@ -49,6 +56,16 @@ diesel::table! {
 }
 
 diesel::table! {
+    todo (id) {
+        id -> Int4,
+        titulo -> Nullable<Text>,
+        isrequired2 -> Nullable<Text>,
+        isrequired22 -> Nullable<Text>,
+        is_required23 -> Nullable<Text>,
+    }
+}
+
+diesel::table! {
     users (id) {
         id -> Int4,
         name -> Varchar,
@@ -66,7 +83,9 @@ diesel::joinable!(fields -> tables (table_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     fields,
+    postagens,
     posts,
     tables,
+    todo,
     users,
 );

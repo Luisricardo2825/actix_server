@@ -21,7 +21,7 @@ impl PostController {
         let connection = &mut establish_connection();
         match delete(dsl::posts)
             .filter(dsl::id.eq(&id))
-            .get_result::<Post>(connection)
+            .get_result(connection)
         {
             Ok(res) => {
                 return Ok(res); // if Successful, return the deleted data
@@ -35,7 +35,7 @@ impl PostController {
         let connection = &mut establish_connection();
         match insert_into(dsl::posts)
             .values(&new_post)
-            .get_result::<Post>(connection)
+            .get_result(connection)
         {
             Ok(res) => {
                 return Ok(res);
@@ -51,7 +51,7 @@ impl PostController {
         match update(dsl::posts)
             .set(&new_post)
             .filter(dsl::id.eq(post_id))
-            .get_result::<Post>(connection)
+            .get_result(connection)
         {
             Ok(res) => {
                 return Ok(res); // if Successful, return the ID of the inserted post
@@ -74,7 +74,7 @@ impl PostController {
             query = query.limit(100) // Default limit to 100
         }
 
-        match query.load::<Post>(connection) {
+        match query.load(connection) {
             Ok(results) => return Ok(results),
             Err(err) => {
                 return Err(ReturnError::new(err.to_string(), query_params)); // if Successful, return the ID of the inserted post
@@ -85,7 +85,7 @@ impl PostController {
         let connection: &mut PgConnection = &mut establish_connection();
         let mut query = dsl::posts.into_boxed();
         query = query.filter(dsl::id.eq(id)); // Search for a unique post
-        match query.first::<Post>(connection) {
+        match query.first(connection) {
             Ok(results) => return Ok(results),
             Err(err) => {
                 return Err(ReturnError::new(err.to_string(), id)); // if Successful, return the ID of the inserted post

@@ -32,7 +32,7 @@ pub fn validate_fields(fields: &Vec<CreateField>) -> Result<(), ReturnError> {
 pub fn set_table_for_vec(table_id: i32, fields: &mut Vec<CreateField>) -> Result<(), ReturnError> {
     for field in fields.iter_mut() {
         field.set_table(table_id);
-        let field_found = FieldController::find_field_by_name(table_id, &field.name);
+        let field_found = FieldController::find_field_by_table_id_and_name(table_id, &field.name);
         if field_found.is_ok() {
             return Err(ReturnError {
                 error_msg: format!("Field \"{}\" already exists", field.name),

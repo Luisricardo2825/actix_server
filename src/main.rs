@@ -3,6 +3,7 @@ use actix_server::config::query_cfg;
 use actix_server::controller::users::structs::Create;
 use actix_server::controller::users::user_controller;
 use actix_server::middlewares::CHECK_LOGIN;
+use actix_server::models::db::connection::db_poll;
 use actix_server::routes::scopes::Scopes;
 
 use actix_web::middleware::{Compress, DefaultHeaders, Logger, NormalizePath};
@@ -17,10 +18,11 @@ async fn main() -> std::io::Result<()> {
     if init_server().await {
         info!("Created default user!");
     }
-
+    let db_poll = db_poll();
     HttpServer::new(move || {
         App::new()
             .app_data(query_cfg::main())
+            .app_data(actix_web::web::Data::new(db_poll.clone()))
             .wrap(Logger::default())
             .wrap(DefaultHeaders::new().add(("Content-Type", "application/json")))
             .wrap(Compress::default())
