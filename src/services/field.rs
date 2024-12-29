@@ -1,12 +1,11 @@
 use crate::controller::fields::field_controller::FieldController;
 use crate::controller::fields::structs::CreateField;
-use crate::controller::fields::structs::CreateFieldWithType;
 use crate::controller::fields::structs::QueryParams;
 use crate::controller::fields::structs::UpdateField;
 use crate::routes::utils::reponses::ReturnError;
 use crate::utils::get_body::get_body;
 use actix_web::web;
-use actix_web::Either;
+use actix_web::web::Payload;
 use actix_web::HttpResponse;
 use actix_web::Responder;
 use actix_web::Result;
@@ -15,77 +14,43 @@ pub struct FieldRoute;
 
 impl FieldRoute {
     // Fields routes
-    pub async fn create(
-        path: web::Path<(String,)>,
-        payload: Either<web::Json<CreateFieldWithType>, web::Json<Vec<CreateFieldWithType>>>,
-    ) -> Result<impl Responder> {
+    pub async fn create(path: web::Path<(String,)>, payload: Payload) -> Result<impl Responder> {
         let (table_name,) = path.into_inner();
         use std::result::Result::Ok;
-
-        match payload {
-            Either::Left(res) => {
-                let table = res.into_inner();
-
-                let table = table.to_create_field();
-                if table.is_err() {
-                    let err = table.err().unwrap();
+        match get_body::<Vec<CreateField>>(payload).await {
+            Ok(tables) => match FieldController::create_fields(table_name, tables) {
+                Ok(res) => {
+                    return Ok(HttpResponse::Created().json(res));
+                }
+                Err(err) => {
                     return Ok(HttpResponse::BadRequest().json(err));
                 }
-                let table = table.unwrap();
-
-                match FieldController::create_field(table_name, table) {
-                    Ok(res) => {
-                        return Ok(HttpResponse::Created().json(res));
-                    }
-                    Err(err) => {
-                        return Ok(HttpResponse::BadRequest().json(err));
-                    }
-                }
-            }
-            Either::Right(res) => {
-                let res = res.into_inner();
-                let table: Vec<Result<CreateField, ReturnError>> =
-                    res.iter().map(|x| x.to_create_field()).collect();
-
-                for ele in &table {
-                    let table = ele;
-
-                    if table.is_err() {
-                        let err =
-                            <std::result::Result<CreateField, ReturnError> as Clone>::clone(&table)
-                                .err()
-                                .unwrap();
-                        return Ok(HttpResponse::BadRequest().json(err));
-                    }
-                }
-                let table: Vec<CreateField> = table.into_iter().map(|x| x.unwrap()).collect();
-                match FieldController::create_fields(table_name, table) {
-                    Ok(res) => {
-                        return Ok(HttpResponse::Created().json(res));
-                    }
-                    Err(err) => {
-                        return Ok(HttpResponse::BadRequest().json(err));
-                    }
-                }
-            }
+            },
+            Err(err) => return Ok(HttpResponse::BadRequest().json(err)),
         }
     }
-    pub async fn find_by_name(path: web::Path<(String, String)>) -> Result<impl Responder> {
-        let (table_name, field_name) = path.into_inner();
-        match FieldController::find_field_by_name(table_name, field_name) {
-            Ok(results) => return Ok(HttpResponse::Ok().json(results)),
-            Err(err) => {
-                return Ok(HttpResponse::NotFound().json(err));
+
+    pub async fn find(path: web::Path<(String, String)>) -> Result<impl Responder> {
+        let (table_name, field) = path.into_inner();
+
+        // Try convert "field" from String to i32
+
+        match field.parse::<i32>() {
+            Ok(field_id) => {
+                println!("field_id {field_id}");
+                match FieldController::find(field_id) {
+                    Ok(results) => return Ok(HttpResponse::Ok().json(results)),
+                    Err(err) => {
+                        return Ok(HttpResponse::NotFound().json(err));
+                    }
+                }
             }
-        }
-    }
-    pub async fn find(path: web::Path<(String, i32)>) -> Result<impl Responder> {
-        let (table_name, field_id) = path.into_inner();
-        match FieldController::find_field(table_name, field_id) {
-            Ok(results) => return Ok(HttpResponse::Ok().json(results)),
-            Err(err) => {
-                return Ok(HttpResponse::NotFound().json(err));
-            }
+            Err(_) => match FieldController::find_field_by_name(table_name, field) {
+                Ok(results) => return Ok(HttpResponse::Ok().json(results)),
+                Err(err) => {
+                    return Ok(HttpResponse::NotFound().json(err));
+                }
+            },
         }
     }
     pub async fn find_all(
@@ -93,8 +58,10 @@ impl FieldRoute {
         query_params: web::Query<QueryParams>,
     ) -> Result<impl Responder> {
         let (table_name,) = path.into_inner();
+        let query_params = query_params.into_inner();
+        println!("query_params: {query_params:?}");
 
-        match FieldController::find_all_fields(table_name, query_params.into_inner()) {
+        match FieldController::find_all_fields(table_name, query_params) {
             Ok(results) => return Ok(HttpResponse::Ok().json(results)),
             Err(err) => {
                 return Ok(HttpResponse::NotFound().json(err));
@@ -154,16 +121,17 @@ impl FieldRoute {
 
         Ok(result)
     }
-    pub async fn update(field_id: web::Path<i32>, payload: web::Payload) -> Result<impl Responder> {
-        let field_id = field_id.into_inner();
-        let mut table = match get_body::<UpdateField>(payload).await {
+    pub async fn update(
+        field_id: web::Path<(String, i32)>,
+        payload: web::Payload,
+    ) -> Result<impl Responder> {
+        let (_, field_id) = field_id.into_inner();
+        let field = match get_body::<UpdateField>(payload).await {
             Ok(res) => res,
             Err(err) => return Ok(HttpResponse::BadRequest().json(err)),
         };
 
-        table.updated_at = Some(chrono::Utc::now().naive_utc()); // update the updated_at field with the current time
-
-        match FieldController::update_field(field_id, table) {
+        match FieldController::update_field(field_id, field) {
             Ok(res) => {
                 return Ok(HttpResponse::Ok().json(res));
             }

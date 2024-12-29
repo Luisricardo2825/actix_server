@@ -11,7 +11,6 @@ use super::structs::CreateTableRequest;
 use super::structs::QueryParams;
 use super::structs::Update;
 use crate::controller::fields::structs::CreateField;
-use crate::controller::fields::structs::CreateFieldWithType;
 use crate::controller::fields::utils::validate_fields;
 use crate::controller::Controller;
 use crate::models::db::connection::establish_connection;
@@ -20,7 +19,7 @@ use crate::models::table_model::Table;
 use crate::routes::utils::reponses::ReturnError;
 use crate::schema::fields::dsl as fields_dsl;
 use crate::schema::tables::dsl as tables_dsl;
-use crate::utils::sql::TableBuilder;
+use crate::utils::sql::TableQueryBuilder;
 
 pub struct TableController;
 
@@ -93,17 +92,12 @@ impl Controller<Table, QueryParams, CreateTableRequest, Update> for TableControl
                         })
                         .collect();
 
-                    let fields_insert: Vec<CreateFieldWithType> =
-                        fields.clone().into_iter().map(|field| field.to_create_field_with_type()).collect();
-
-                    let query = insert_into(fields_dsl::fields)
-                        .values(fields_insert)
-                        .execute(conn);
+                    let query = insert_into(fields_dsl::fields).values(&fields).execute(conn);
 
                     match query {
                         Ok(_) => {
-                            let builder = TableBuilder::from_create(table.clone(), fields);
-                            let query_table = builder.build();
+                            let builder = TableQueryBuilder::from_create(table.clone(), fields);
+                            let query_table = builder.build_create_table();
                             let create_table = sql_query(query_table).execute(conn);
                             match create_table {
                                 Ok(_) => {

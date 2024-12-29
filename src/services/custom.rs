@@ -15,7 +15,7 @@ pub struct CustomRoute;
 
 impl CustomRoute {
     pub async fn find_all(
-        pool: web::Data<DbPool>,
+        _pool: web::Data<DbPool>,
         table_name: web::Path<String>,
         query_params: web::Query<QueryParams>,
     ) -> Result<impl Responder> {

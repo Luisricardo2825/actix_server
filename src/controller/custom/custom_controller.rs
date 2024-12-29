@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
+use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
 use diesel::pg::Pg;
 use diesel::query_builder::BoxedSqlQuery;
 use diesel::sql_types::{Binary, Bool, Date, Float, Integer, Json, Time, Timestamp, VarChar};
@@ -11,7 +11,7 @@ use super::structs::{GenericValue, QueryParams};
 
 use crate::controller::db::establish_connection;
 use crate::controller::fields::field_controller::FieldController;
-use crate::controller::fields::structs::FieldType;
+use crate::controller::fields::types::FieldType;
 use crate::controller::tables::table_controller::TableController;
 use crate::models::db::connection::DbPool;
 use crate::models::db::driver_connection::establish_driver_connection;
@@ -118,7 +118,10 @@ impl CustomController {
         let values_cloned = values.clone();
         for field in fields.clone() {
             let values = values_cloned.as_object().unwrap();
-            if field.is_required && !values.contains_key(&field.name) {
+            if field.is_required
+                && field.default_value.is_none()
+                && !values.contains_key(&field.name)
+            {
                 return Err(ReturnError::without_value(format!(
                     "Field \"{}\" is required",
                     field.name
@@ -232,7 +235,7 @@ fn add_params<'a>(
         }
         let field_type = field_type.unwrap();
         match field_type {
-            FieldType::String => {
+            FieldType::Varchar => {
                 query = query.bind::<VarChar, String>(value.as_str().unwrap().to_owned());
             }
             FieldType::Integer => {
@@ -245,8 +248,17 @@ fn add_params<'a>(
                 query = query.bind::<Bool, bool>(value.as_bool().unwrap());
             }
             FieldType::Timestamp => {
-                query = query
-                    .bind::<Timestamp, NaiveDateTime>(value.as_str().unwrap().parse().unwrap());
+                let timestamp = value.as_str().unwrap().parse::<DateTime<Utc>>();
+                if timestamp.is_err() {
+                    return Err(ReturnError::without_value(format!(
+                        "Invalid timestamp \"{}\"",
+                        value.as_str().unwrap()
+                    )));
+                }
+                let timestamp = timestamp.unwrap();
+                let naivedatetime = timestamp.naive_utc();
+
+                query = query.bind::<Timestamp, NaiveDateTime>(naivedatetime);
             }
             FieldType::Date => {
                 query = query.bind::<Date, NaiveDate>(value.as_str().unwrap().parse().unwrap());

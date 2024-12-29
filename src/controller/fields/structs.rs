@@ -1,14 +1,14 @@
-use std::fmt;
+use std::collections::HashMap;
 
 use chrono::NaiveDateTime;
 use derive_more::derive::Debug;
-use diesel::{AsChangeset, Expression, Insertable};
-use serde::{
-    de::{self, Visitor},
-    Deserialize, Deserializer, Serialize,
-};
+use diesel::{AsChangeset, Insertable};
+use serde::{Deserialize, Serialize};
+use serde_json::{Number, Value};
 
 use crate::{models::fields_model::Field, routes::utils::reponses::ReturnError};
+
+use super::types::FieldType;
 
 #[derive(Serialize, Deserialize, Insertable, Clone)]
 #[diesel(table_name = crate::schema::fields)]
@@ -30,215 +30,6 @@ pub struct CreateField {
     pub custom_expression: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Insertable, Clone)]
-#[diesel(table_name = crate::schema::fields)]
-#[serde(rename_all = "camelCase")]
-pub struct CreateFieldWithType {
-    pub id: Option<i32>,
-    pub name: String,
-    pub description: Option<String>,
-    pub field_type: String,
-    pub table_id: Option<i32>,
-    pub is_required: Option<bool>,
-    pub is_primary_key: Option<bool>,
-    pub is_auto_increment: Option<bool>,
-    pub is_generated: Option<bool>,
-    pub default_value: Option<String>,
-    pub is_unique: Option<bool>,
-    pub created_at: Option<NaiveDateTime>,
-    pub updated_at: Option<NaiveDateTime>,
-    pub custom_expression: Option<String>,
-}
-
-impl CreateFieldWithType {
-    pub fn to_create_field(&self) -> Result<CreateField, ReturnError> {
-        let field_type = match self.field_type.as_str() {
-            "string" => FieldType::String,
-            "integer" => FieldType::Integer,
-            "float" => FieldType::Float,
-            "boolean" => FieldType::Boolean,
-            "date" => FieldType::Date,
-            "time" => FieldType::Time,
-            "Timestamp" => FieldType::Timestamp,
-            "text" => FieldType::Text,
-            "json" => FieldType::Json,
-            "binary" => FieldType::Binary,
-            e => return Err(ReturnError::new("Invalid field type".to_string(), e)),
-        };
-        Ok(CreateField {
-            id: self.id,
-            name: self.name.clone(),
-            description: self.description.clone(),
-            field_type,
-            table_id: self.table_id,
-            is_required: self.is_required,
-            is_primary_key: self.is_primary_key,
-            is_auto_increment: self.is_auto_increment,
-            is_generated: self.is_generated,
-            default_value: self.default_value.clone(),
-            is_unique: self.is_unique,
-            created_at: self.created_at,
-            updated_at: self.updated_at,
-            custom_expression: self.custom_expression.clone(),
-        })
-    }
-}
-
-#[derive(Serialize, Clone, Debug)]
-#[serde(untagged)]
-pub enum FieldType {
-    String = 0,
-    Integer = 1,
-    Float = 2,
-    Boolean = 3,
-    Date = 4,
-    Time = 5,
-    Timestamp = 6,
-    Text = 7,
-    Json = 8,
-    Binary = 9,
-}
-
-impl<'de> Deserialize<'de> for FieldType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct FieldTypeVisitor;
-
-        impl<'de> Visitor<'de> for FieldTypeVisitor {
-            type Value = FieldType;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("a valid FieldType variant")
-            }
-
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: de::Error,
-            {
-                match value {
-                    "String" => Ok(FieldType::String),
-                    "Integer" => Ok(FieldType::Integer),
-                    "Float" => Ok(FieldType::Float),
-                    "Boolean" => Ok(FieldType::Boolean),
-                    "Date" => Ok(FieldType::Date),
-                    "Time" => Ok(FieldType::Time),
-                    "Timestamp" => Ok(FieldType::Timestamp),
-                    "Text" => Ok(FieldType::Text),
-                    "Json" => Ok(FieldType::Json),
-                    "Binary" => Ok(FieldType::Binary),
-                    _ => Err(de::Error::unknown_variant(
-                        value,
-                        &[
-                            "String",
-                            "Integer",
-                            "Float",
-                            "Boolean",
-                            "Date",
-                            "Time",
-                            "Timestamp",
-                            "Text",
-                            "Json",
-                            "Binary",
-                        ],
-                    )),
-                }
-            }
-        }
-
-        deserializer.deserialize_any(FieldTypeVisitor)
-    }
-}
-
-impl FieldType {
-    pub fn to_string(&self) -> Result<String, ReturnError> {
-        match self {
-            FieldType::String => Ok("Varchar".to_string()),
-            FieldType::Integer => Ok("Integer".to_string()),
-            FieldType::Float => Ok("Float".to_string()),
-            FieldType::Boolean => Ok("Bool".to_string()),
-            FieldType::Date => Ok("Date".to_string()),
-            FieldType::Time => Ok("Time".to_string()),
-            FieldType::Timestamp => Ok("Timestamp".to_string()),
-            FieldType::Text => Ok("Text".to_string()),
-            FieldType::Json => Ok("Json".to_string()),
-            FieldType::Binary => Ok("bytea".to_string()),
-        }
-    }
-    pub fn from_string(s: &str) -> Result<Self, ReturnError> {
-        match s.to_lowercase().as_str() {
-            "string" => Ok(FieldType::String),
-            "integer" => Ok(FieldType::Integer),
-            "float" => Ok(FieldType::Float),
-            "boolean" => Ok(FieldType::Boolean),
-            "date" => Ok(FieldType::Date),
-            "time" => Ok(FieldType::Time),
-            "timestamp" => Ok(FieldType::Timestamp),
-            "text" => Ok(FieldType::Text),
-            "json" => Ok(FieldType::Json),
-            "binary" => Ok(FieldType::Binary),
-            e => Err(ReturnError::new(
-                "Invalid field type".to_string(),
-                format!("{}", e).as_str(),
-            )),
-        }
-    }
-    pub fn check_if_exists(field_type: &String) -> bool {
-        match field_type.as_str() {
-            "string" => true,
-            "integer" => true,
-            "float" => true,
-            "boolean" => true,
-            "date" => true,
-            "time" => true,
-            "Timestamp" => true,
-            "text" => true,
-            "json" => true,
-            "binary" => true,
-            _ => false,
-        }
-    }
-}
-
-impl Expression for FieldType {
-    type SqlType = diesel::sql_types::Text;
-}
-
-impl Into<String> for FieldType {
-    fn into(self) -> String {
-        match self {
-            FieldType::String => "string".to_string(),
-            FieldType::Integer => "integer".to_string(),
-            FieldType::Float => "float".to_string(),
-            FieldType::Boolean => "boolean".to_string(),
-            FieldType::Date => "date".to_string(),
-            FieldType::Time => "time".to_string(),
-            FieldType::Timestamp => "Timestamp".to_string(),
-            FieldType::Text => "text".to_string(),
-            FieldType::Json => "json".to_string(),
-            FieldType::Binary => "binary".to_string(),
-        }
-    }
-}
-
-impl Into<FieldType> for String {
-    fn into(self) -> FieldType {
-        match self.as_str() {
-            "string" => FieldType::String,
-            "integer" => FieldType::Integer,
-            "float" => FieldType::Float,
-            "boolean" => FieldType::Boolean,
-            "date" => FieldType::Date,
-            "time" => FieldType::Time,
-            "Timestamp" => FieldType::Timestamp,
-            "text" => FieldType::Text,
-            "json" => FieldType::Json,
-            "binary" => FieldType::Binary,
-            _ => panic!("Invalid type"),
-        }
-    }
-}
 impl CreateField {
     pub fn new(
         name: String,
@@ -289,24 +80,6 @@ impl CreateField {
         }
     }
 
-    pub fn to_create_field_with_type(&self) -> CreateFieldWithType {
-        CreateFieldWithType {
-            id: None,
-            table_id: self.table_id,
-            name: self.name.to_owned(),
-            field_type: self.field_type.to_string().unwrap(),
-            is_required: self.is_required,
-            is_unique: self.is_unique,
-            is_primary_key: self.is_primary_key,
-            is_auto_increment: self.is_auto_increment,
-            is_generated: self.is_generated,
-            default_value: self.default_value.to_owned(),
-            description: self.description.to_owned(),
-            created_at: None,
-            updated_at: None,
-            custom_expression: self.custom_expression.to_owned(),
-        }
-    }
     fn this_error(&self, error: String) -> Result<(), ReturnError> {
         Err(ReturnError::new(
             error,
@@ -320,10 +93,6 @@ impl CreateField {
         }
         let field_type = self.field_type.to_string();
 
-        if field_type.is_err() {
-            return Err(field_type.unwrap_err());
-        }
-        let field_type = field_type.unwrap();
         if field_type.is_empty() {
             return self.this_error("Field type cannot be empty".to_string());
         }
@@ -413,10 +182,10 @@ impl Field {
 #[diesel(table_name = crate::schema::fields)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateField {
-    pub id: i32,
+    pub id: Option<i32>,
     pub name: Option<String>,
     pub description: Option<String>,
-    pub field_type: Option<String>,
+    pub field_type: Option<FieldType>,
     pub table_id: Option<i32>,
     pub is_required: Option<bool>,
     pub is_primary_key: Option<bool>,
@@ -429,9 +198,230 @@ pub struct UpdateField {
     pub custom_expression: Option<String>,
 }
 
+impl UpdateField {
+    pub fn is_empty(&self) -> bool {
+        self.id.is_none()
+            && self.name.is_none()
+            && self.description.is_none()
+            && self.field_type.is_none()
+            && self.table_id.is_none()
+            && self.is_required.is_none()
+            && self.is_primary_key.is_none()
+            && self.is_auto_increment.is_none()
+            && self.is_generated.is_none()
+            && self.default_value.is_none()
+            && self.is_unique.is_none()
+            && self.created_at.is_none()
+            && self.updated_at.is_none()
+            && self.custom_expression.is_none()
+    }
+}
+impl PartialEq<Field> for UpdateField {
+    fn eq(&self, other: &Field) -> bool {
+        // Check if self has any change compared to old
+        if self.id.is_some_and(|x| x != other.id) {
+            return false;
+        }
+
+        if self.name.as_ref().is_some_and(|x| *x != other.name) {
+            return false;
+        }
+        if self
+            .description
+            .as_ref()
+            .is_some_and(|x| other.description.as_ref().is_some_and(|y| x != y))
+        {
+            return false;
+        }
+
+        if self
+            .field_type
+            .is_some_and(|x| x.to_string() != other.field_type.to_string())
+        {
+            return false;
+        }
+        if self.table_id.is_some_and(|x| x != other.table_id) {
+            return false;
+        }
+        if self.is_required.is_some_and(|x| x != other.is_required) {
+            return false;
+        }
+        if self
+            .is_primary_key
+            .is_some_and(|x| x != other.is_primary_key)
+        {
+            return false;
+        }
+
+        if self
+            .is_auto_increment
+            .is_some_and(|x| x != other.is_auto_increment)
+        {
+            return false;
+        }
+
+        if self.is_generated.is_some_and(|x| x != other.is_generated) {
+            return false;
+        }
+        if self
+            .default_value
+            .as_ref()
+            .is_some_and(|x| other.default_value.as_ref().is_some_and(|y| x != y))
+        {
+            return false;
+        }
+        if self.is_unique.is_some_and(|x| x != other.is_unique) {
+            return false;
+        }
+        if self
+            .created_at
+            .is_some_and(|x| other.created_at.is_some_and(|y| x != y))
+        {
+            return false;
+        }
+
+        if self
+            .custom_expression
+            .as_ref()
+            .is_some_and(|x| other.custom_expression.as_ref().is_some_and(|y| x != y))
+        {
+            return false;
+        }
+
+        true
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all(serialize = "camelCase"))]
 pub struct QueryParams {
     pub id: Option<i32>,
+    #[serde(rename = "perPage")]
     pub per_page: Option<i64>,
+    // aditional props
+    #[serde(flatten)]
+    pub extra: HashMap<String, Value>,
+}
+
+impl QueryParams {
+    pub fn new(id: Option<i32>, per_page: Option<i64>) -> Self {
+        Self {
+            id,
+            per_page,
+            extra: HashMap::new(),
+        }
+    }
+    pub fn from_json(json: &Value) -> Result<Self, ReturnError> {
+        let mut params = Self::new(None, None);
+        let mut extra = HashMap::new();
+        if let Some(id) = json.get("id") {
+            params.id = Some(id.as_i64().unwrap() as i32);
+        }
+        if let Some(per_page) = json.get("perPage") {
+            params.per_page = Some(per_page.as_i64().unwrap());
+        }
+        for (key, value) in json.as_object().unwrap() {
+            if key == "id" || key == "perPage" {
+                continue;
+            }
+            extra.insert(key.to_string(), value.clone());
+        }
+        params.extra = extra;
+        Ok(params)
+    }
+    pub fn to_json(&self) -> Value {
+        let mut json = serde_json::to_value(self).unwrap();
+        for (key, value) in &self.extra {
+            json[key] = value.clone();
+        }
+        json
+    }
+    pub fn convert_extra_values(&mut self) {
+        for (key, value) in &self.extra.clone() {
+            if Self::is_array(key) {
+                let value = Self::get_array_value(value);
+                println!("{} is array", serde_json::to_string(&value).unwrap());
+                let _ = &mut self.extra.insert(key.to_string(), Value::Array(value));
+                continue;
+            }
+
+            if Self::is_i64(value) {
+                let _ = &mut self
+                    .extra
+                    .insert(key.to_string(), Value::Number(Self::to_i64(value).into()));
+                continue;
+            }
+
+            if Self::is_f64(value) {
+                let _ = &mut self.extra.insert(
+                    key.to_string(),
+                    Number::from_f64(Self::to_f64(value)).into(),
+                );
+                continue;
+            }
+            if Self::is_bool(value) {
+                let _ = &mut self
+                    .extra
+                    .insert(key.to_string(), Value::Bool(Self::to_bool(value)));
+                continue;
+            }
+
+            let _ = &mut self.extra.insert(key.to_string(), value.clone());
+        }
+    }
+
+    pub fn is_array(key: &str) -> bool {
+        key.ends_with("[]")
+    }
+    pub fn get_array_key(key: &str) -> String {
+        key.trim_end_matches("[]").to_string()
+    }
+    pub fn get_array_value(value: &Value) -> Vec<Value> {
+        let value = value.as_str().unwrap();
+        // Remove first and last character
+        let value = &value[1..value.len() - 1];
+        let value: Vec<Value> = value
+            .split(",")
+            .map(|x| Value::String(x.to_string()))
+            .collect::<Vec<Value>>();
+        value
+    }
+    pub fn is_i64(value: &Value) -> bool {
+        value.as_i64().is_some()
+    }
+    pub fn to_i64(value: &Value) -> i64 {
+        value.as_i64().unwrap()
+    }
+    pub fn to_i32(value: &Value) -> i32 {
+        Self::to_i64(value) as i32
+    }
+
+    pub fn is_f64(value: &Value) -> bool {
+        value.as_f64().is_some()
+    }
+    pub fn is_i32(value: &Value) -> bool {
+        Self::is_f64(value)
+    }
+    pub fn to_f64(value: &Value) -> f64 {
+        value.as_f64().unwrap()
+    }
+    pub fn to_f32(value: &Value) -> f32 {
+        Self::to_f64(value) as f32
+    }
+
+    pub fn is_bool(value: &Value) -> bool {
+        value.as_bool().is_some()
+    }
+    pub fn to_bool(value: &Value) -> bool {
+        value.as_bool().unwrap()
+    }
+
+    pub fn keys_to_lowercase(&mut self) {
+        let mut extra = HashMap::new();
+        for (key, value) in &self.extra {
+            let key = key.to_lowercase();
+            extra.insert(key, value.clone());
+        }
+        self.extra = extra;
+    }
 }

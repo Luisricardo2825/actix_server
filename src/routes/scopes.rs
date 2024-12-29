@@ -63,7 +63,6 @@ impl Scopes {
         actix_web::web::scope("/tables/{table_name}/fields")
             .route("/", web::post().to(FieldRoute::create))
             .route("/{id}/", web::get().to(FieldRoute::find))
-            .route("/{field_name}/", web::get().to(FieldRoute::find_by_name))
             .route("/", web::get().to(FieldRoute::find_all))
             .route("/{id}/", web::patch().to(FieldRoute::update))
             .route("/{id}/", web::delete().to(FieldRoute::delete))
