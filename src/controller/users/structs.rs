@@ -29,9 +29,3 @@ pub struct Create {
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
 }
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct QueryParams {
-    pub id: Option<i32>,
-    pub per_page: Option<i64>,
-}

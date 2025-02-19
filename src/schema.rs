@@ -22,13 +22,6 @@ diesel::table! {
 }
 
 diesel::table! {
-    postagens (idpost) {
-        idpost -> Int4,
-        titulo -> Nullable<Text>,
-    }
-}
-
-diesel::table! {
     posts (id) {
         id -> Int4,
         title -> Varchar,
@@ -45,23 +38,18 @@ diesel::table! {
         #[max_length = 255]
         name -> Varchar,
         description -> Text,
+        view_sql -> Nullable<Text>,
+        capacity -> Nullable<Int4>,
         is_view -> Bool,
         is_active -> Bool,
         is_deleted -> Bool,
-        view_sql -> Nullable<Text>,
-        capacity -> Nullable<Int4>,
+        auth -> Bool,
+        auth_get -> Bool,
+        auth_post -> Bool,
+        auth_put -> Bool,
+        auth_delete -> Bool,
         created_at -> Nullable<Timestamp>,
         updated_at -> Nullable<Timestamp>,
-    }
-}
-
-diesel::table! {
-    todo (id) {
-        id -> Int4,
-        titulo -> Nullable<Text>,
-        isrequired2 -> Nullable<Text>,
-        isrequired22 -> Nullable<Text>,
-        is_required23 -> Nullable<Text>,
     }
 }
 
@@ -83,9 +71,7 @@ diesel::joinable!(fields -> tables (table_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     fields,
-    postagens,
     posts,
     tables,
-    todo,
     users,
 );

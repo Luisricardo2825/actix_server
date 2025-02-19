@@ -1,6 +1,6 @@
 use chrono::NaiveDateTime;
 use derive_more::derive::Debug;
-use diesel::{AsChangeset, Insertable};
+use diesel::{prelude::Identifiable, AsChangeset, Insertable};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -24,7 +24,7 @@ pub struct Update {
     pub updated_at: Option<NaiveDateTime>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateTableRequest {
     pub id: Option<i32>,
@@ -34,15 +34,20 @@ pub struct CreateTableRequest {
     pub is_active: Option<bool>,
     pub is_deleted: Option<bool>,
     pub view_sql: Option<String>,
-    // pub view_columns: Option<Vec<Option<String>>>,
+    pub auth: Option<bool>,
+    pub auth_get: Option<bool>,
+    pub auth_post: Option<bool>,
+    pub auth_put: Option<bool>,
+    pub auth_delete: Option<bool>,
     pub capacity: Option<i32>,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
     pub fields: Option<Vec<CreateField>>,
 }
 
-#[derive(Serialize, Deserialize, Insertable, Clone, Debug)]
+#[derive(Serialize, Deserialize, Insertable, Clone, Debug, Identifiable, PartialEq)]
 #[diesel(table_name = crate::schema::tables)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
 #[serde(rename_all = "camelCase")]
 pub struct Create {
     pub id: Option<i32>,
@@ -52,6 +57,11 @@ pub struct Create {
     pub is_active: Option<bool>,
     pub is_deleted: Option<bool>,
     pub view_sql: Option<String>,
+    pub auth: Option<bool>,
+    pub auth_get: Option<bool>,
+    pub auth_post: Option<bool>,
+    pub auth_put: Option<bool>,
+    pub auth_delete: Option<bool>,
     pub capacity: Option<i32>,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
@@ -66,6 +76,11 @@ impl Create {
         is_deleted: Option<bool>,
         view_sql: Option<String>,
         capacity: Option<i32>,
+        auth: Option<bool>,
+        auth_get: Option<bool>,
+        auth_post: Option<bool>,
+        auth_put: Option<bool>,
+        auth_delete: Option<bool>,
     ) -> Self {
         Self {
             id: None,
@@ -76,6 +91,11 @@ impl Create {
             is_deleted,
             view_sql,
             capacity,
+            auth,
+            auth_get,
+            auth_post,
+            auth_put,
+            auth_delete,
             created_at: None,
             updated_at: None,
         }
@@ -91,6 +111,11 @@ impl Create {
             is_deleted: self.is_deleted.unwrap_or(false),
             view_sql: self.view_sql.clone(),
             capacity: self.capacity,
+            auth: self.auth.unwrap_or(true),
+            auth_get: self.auth_get.unwrap_or(false),
+            auth_post: self.auth_post.unwrap_or(false),
+            auth_put: self.auth_put.unwrap_or(false),
+            auth_delete: self.auth_delete.unwrap_or(false),
             created_at: self.created_at,
             updated_at: self.updated_at,
         }
@@ -105,6 +130,11 @@ impl Create {
             table_request.is_deleted,
             table_request.view_sql,
             table_request.capacity,
+            table_request.auth,
+            table_request.auth_get,
+            table_request.auth_post,
+            table_request.auth_put,
+            table_request.auth_delete,
         );
         (table, fields)
     }
@@ -159,11 +189,4 @@ impl Create {
 #[serde(rename_all = "camelCase")]
 pub struct Delete {
     pub id: i32,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct QueryParams {
-    pub id: Option<i32>,
-    pub per_page: Option<i64>,
 }

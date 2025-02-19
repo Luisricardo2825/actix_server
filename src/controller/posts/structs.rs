@@ -30,10 +30,3 @@ pub struct Create {
 pub struct Delete {
     pub id: i32,
 }
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct QueryParams {
-    pub id: Option<i32>,
-    pub per_page: Option<i64>,
-}

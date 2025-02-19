@@ -9,7 +9,7 @@ use crate::models::db::connection::DbPool;
 use crate::utils::get_body::get_body;
 
 use crate::controller::custom::custom_controller::CustomController;
-use crate::controller::custom::structs::QueryParams;
+use crate::controller::QueryParams;
 
 pub struct CustomRoute;
 
@@ -29,14 +29,14 @@ impl CustomRoute {
 
     pub async fn find_one(
         pool: web::Data<DbPool>,
-        path: web::Path<(String,)>,
+        path: web::Path<(String, String)>,
         query_params: web::Query<QueryParams>,
     ) -> Result<impl Responder> {
-        let (table_name,) = path.into_inner();
+        let (table_name, id) = path.into_inner();
         let pool = pool.into_inner();
         let controller = CustomController(pool);
         match controller
-            .find_one(table_name, query_params.into_inner())
+            .find_one(table_name, id, query_params.into_inner())
             .await
         {
             Ok(results) => return Ok(HttpResponse::Ok().json(results)),

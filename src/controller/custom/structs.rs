@@ -1,22 +1,9 @@
 use chrono::NaiveDateTime;
 use derive_more::derive::Debug;
-use diesel::{
-    backend::Backend,
-    deserialize::{self, FromSql, FromSqlRow},
-    expression::AsExpression,
-    pg::{Pg, PgValue},
-    row::NamedRow,
-    serialize::{self, Output, ToSql},
-    sql_types::{Json, Text},
-    AsChangeset, Insertable, QueryableByName,
-};
+use diesel::{AsChangeset, Insertable};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
-use crate::{
-    controller::fields::structs::CreateField, routes::utils::reponses::ReturnError,
-    utils::string_utils::to_camel_case,
-};
+use crate::{controller::fields::structs::CreateField, routes::utils::reponses::ReturnError};
 
 #[derive(Serialize, Deserialize, AsChangeset, Clone, Debug)]
 #[diesel(table_name = crate::schema::tables)]
@@ -157,56 +144,23 @@ pub struct Delete {
     pub id: i32,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct QueryParams {
-    pub per_page: Option<i64>,
-    pub table_name: Option<String>,
-    #[serde(flatten)]
-    pub conditions: Option<serde_json::Value>,
-}
+// #[derive(AsExpression, Debug, Deserialize, Serialize, FromSqlRow)]
+// #[sql_type = "Text"]
+// pub struct MyJsonType(serde_json::Value);
 
-#[derive(AsExpression, Debug, Deserialize, Serialize, FromSqlRow)]
-#[sql_type = "Text"]
-pub struct MyJsonType(serde_json::Value);
+// impl FromSql<Text, diesel::pg::Pg> for MyJsonType {
+//     fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
+//         let t = <String as FromSql<Text, Pg>>::from_sql(bytes)?;
+//         Ok(Self(serde_json::from_str(&t)?))
+//     }
+// }
 
-impl FromSql<Text, diesel::pg::Pg> for MyJsonType {
-    fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
-        let t = <String as FromSql<Text, Pg>>::from_sql(bytes)?;
-        Ok(Self(serde_json::from_str(&t)?))
-    }
-}
-
-impl ToSql<Text, diesel::pg::Pg> for MyJsonType
-where
-    String: ToSql<Text, diesel::pg::Pg>,
-{
-    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, diesel::pg::Pg>) -> serialize::Result {
-        let v = serde_json::to_string(&self.0)?;
-        <String as ToSql<Text, diesel::pg::Pg>>::to_sql(&v, &mut out.reborrow())
-    }
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct GenericValue(pub Value);
-
-impl<DB> QueryableByName<DB> for GenericValue
-where
-    DB: Backend,
-    Value: FromSql<Json, DB>,
-{
-    fn build<'a>(row: &impl NamedRow<'a, DB>) -> deserialize::Result<Self> {
-        // Row::
-        let internal_table_name: Value = NamedRow::get::<Json, _>(row, "row")?;
-        let map: &serde_json::Map<String, Value> = internal_table_name.as_object().unwrap();
-        let mut new_map = serde_json::Map::new();
-        // Convert snake case to camel case
-        for (key, value) in map {
-            let camel_case_key = to_camel_case(&key);
-            new_map.insert(camel_case_key, value.clone());
-        }
-        let internal_table_name = serde_json::to_value(new_map).unwrap();
-        let value = GenericValue(internal_table_name);
-        Ok(value)
-    }
-}
+// impl ToSql<Text, diesel::pg::Pg> for MyJsonType
+// where
+//     String: ToSql<Text, diesel::pg::Pg>,
+// {
+//     fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, diesel::pg::Pg>) -> serialize::Result {
+//         let v = serde_json::to_string(&self.0)?;
+//         <String as ToSql<Text, diesel::pg::Pg>>::to_sql(&v, &mut out.reborrow())
+//     }
+// }

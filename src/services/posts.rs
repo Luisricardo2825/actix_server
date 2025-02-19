@@ -9,7 +9,7 @@ use crate::utils::get_body::get_body;
 use crate::controller::posts::post_controller::PostController;
 use crate::controller::posts::structs::Create;
 use crate::controller::posts::structs::Delete;
-use crate::controller::posts::structs::QueryParams;
+use crate::controller::QueryParams;
 use crate::controller::posts::structs::Update;
 
 pub struct PostsRoute;

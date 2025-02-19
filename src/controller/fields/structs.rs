@@ -1,16 +1,13 @@
-use std::collections::HashMap;
-
 use chrono::NaiveDateTime;
 use derive_more::derive::Debug;
 use diesel::{AsChangeset, Insertable};
 use serde::{Deserialize, Serialize};
-use serde_json::{Number, Value};
 
 use crate::{models::fields_model::Field, routes::utils::reponses::ReturnError};
 
 use super::types::FieldType;
 
-#[derive(Serialize, Deserialize, Insertable, Clone)]
+#[derive(Serialize, Deserialize, Insertable, Clone, Debug)]
 #[diesel(table_name = crate::schema::fields)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateField {
@@ -289,139 +286,5 @@ impl PartialEq<Field> for UpdateField {
         }
 
         true
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all(serialize = "camelCase"))]
-pub struct QueryParams {
-    pub id: Option<i32>,
-    #[serde(rename = "perPage")]
-    pub per_page: Option<i64>,
-    // aditional props
-    #[serde(flatten)]
-    pub extra: HashMap<String, Value>,
-}
-
-impl QueryParams {
-    pub fn new(id: Option<i32>, per_page: Option<i64>) -> Self {
-        Self {
-            id,
-            per_page,
-            extra: HashMap::new(),
-        }
-    }
-    pub fn from_json(json: &Value) -> Result<Self, ReturnError> {
-        let mut params = Self::new(None, None);
-        let mut extra = HashMap::new();
-        if let Some(id) = json.get("id") {
-            params.id = Some(id.as_i64().unwrap() as i32);
-        }
-        if let Some(per_page) = json.get("perPage") {
-            params.per_page = Some(per_page.as_i64().unwrap());
-        }
-        for (key, value) in json.as_object().unwrap() {
-            if key == "id" || key == "perPage" {
-                continue;
-            }
-            extra.insert(key.to_string(), value.clone());
-        }
-        params.extra = extra;
-        Ok(params)
-    }
-    pub fn to_json(&self) -> Value {
-        let mut json = serde_json::to_value(self).unwrap();
-        for (key, value) in &self.extra {
-            json[key] = value.clone();
-        }
-        json
-    }
-    pub fn convert_extra_values(&mut self) {
-        for (key, value) in &self.extra.clone() {
-            if Self::is_array(key) {
-                let value = Self::get_array_value(value);
-                println!("{} is array", serde_json::to_string(&value).unwrap());
-                let _ = &mut self.extra.insert(key.to_string(), Value::Array(value));
-                continue;
-            }
-
-            if Self::is_i64(value) {
-                let _ = &mut self
-                    .extra
-                    .insert(key.to_string(), Value::Number(Self::to_i64(value).into()));
-                continue;
-            }
-
-            if Self::is_f64(value) {
-                let _ = &mut self.extra.insert(
-                    key.to_string(),
-                    Number::from_f64(Self::to_f64(value)).into(),
-                );
-                continue;
-            }
-            if Self::is_bool(value) {
-                let _ = &mut self
-                    .extra
-                    .insert(key.to_string(), Value::Bool(Self::to_bool(value)));
-                continue;
-            }
-
-            let _ = &mut self.extra.insert(key.to_string(), value.clone());
-        }
-    }
-
-    pub fn is_array(key: &str) -> bool {
-        key.ends_with("[]")
-    }
-    pub fn get_array_key(key: &str) -> String {
-        key.trim_end_matches("[]").to_string()
-    }
-    pub fn get_array_value(value: &Value) -> Vec<Value> {
-        let value = value.as_str().unwrap();
-        // Remove first and last character
-        let value = &value[1..value.len() - 1];
-        let value: Vec<Value> = value
-            .split(",")
-            .map(|x| Value::String(x.to_string()))
-            .collect::<Vec<Value>>();
-        value
-    }
-    pub fn is_i64(value: &Value) -> bool {
-        value.as_i64().is_some()
-    }
-    pub fn to_i64(value: &Value) -> i64 {
-        value.as_i64().unwrap()
-    }
-    pub fn to_i32(value: &Value) -> i32 {
-        Self::to_i64(value) as i32
-    }
-
-    pub fn is_f64(value: &Value) -> bool {
-        value.as_f64().is_some()
-    }
-    pub fn is_i32(value: &Value) -> bool {
-        Self::is_f64(value)
-    }
-    pub fn to_f64(value: &Value) -> f64 {
-        value.as_f64().unwrap()
-    }
-    pub fn to_f32(value: &Value) -> f32 {
-        Self::to_f64(value) as f32
-    }
-
-    pub fn is_bool(value: &Value) -> bool {
-        value.as_bool().is_some()
-    }
-    pub fn to_bool(value: &Value) -> bool {
-        value.as_bool().unwrap()
-    }
-
-    pub fn keys_to_lowercase(&mut self) {
-        let mut extra = HashMap::new();
-        for (key, value) in &self.extra {
-            let key = key.to_lowercase();
-            extra.insert(key, value.clone());
-        }
-        self.extra = extra;
     }
 }

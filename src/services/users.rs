@@ -8,7 +8,7 @@ use crate::routes::utils::reponses::ReturnError;
 use crate::utils::get_body::get_body;
 
 use crate::controller::users::structs::Create;
-use crate::controller::users::structs::QueryParams;
+use crate::controller::QueryParams;
 use crate::controller::users::structs::Update;
 use crate::controller::users::user_controller::UserController;
 

@@ -6,12 +6,13 @@ use actix_web::Result;
 use crate::controller::tables::structs::CreateTableRequest;
 use crate::controller::tables::table_controller::TableController;
 use crate::controller::Controller;
+use crate::controller::GenericValue;
 use crate::routes::utils::reponses::ReturnError;
 use crate::utils::get_body::get_body;
 
 use crate::controller::tables::structs::Delete;
-use crate::controller::tables::structs::QueryParams;
 use crate::controller::tables::structs::Update;
+use crate::controller::QueryParams;
 
 pub struct TableRoute;
 
@@ -65,7 +66,7 @@ impl TableRoute {
 
         table.updated_at = Some(chrono::Utc::now().naive_utc()); // update the updated_at field with the current time
 
-        match TableController::update(post_id, table) {
+        match TableController::update(post_id, GenericValue::from(&table).unwrap()) {
             Ok(res) => {
                 return Ok(HttpResponse::Ok().json(res));
             }
@@ -106,6 +107,27 @@ impl TableRoute {
             Ok(results) => return Ok(HttpResponse::Ok().json(results)),
             Err(err) => {
                 return Ok(HttpResponse::NotFound().json(err));
+            }
+        }
+    }
+    pub async fn delete_table_by_name(name: web::Path<String>) -> Result<impl Responder> {
+        let name = name.into_inner();
+        match TableController::delete_by_name(&name) {
+            Ok(res) => {
+                return Ok(HttpResponse::Ok().json(res)); // if Successful, return the deleted data
+            }
+            Err(err) => {
+                let not_found = err.to_string().to_lowercase().contains("not found");
+                if not_found {
+                    return Ok(HttpResponse::NotFound().json(ReturnError {
+                        error_msg: format!("table with name: {} not found", &name),
+                        values: Some(name.into()),
+                    }));
+                }
+                return Ok(HttpResponse::BadRequest().json(ReturnError {
+                    error_msg: err.to_string(),
+                    values: Some(name.into()),
+                }));
             }
         }
     }

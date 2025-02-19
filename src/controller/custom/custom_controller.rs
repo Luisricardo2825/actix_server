@@ -7,12 +7,13 @@ use diesel::sql_types::{Binary, Bool, Date, Float, Integer, Json, Time, Timestam
 use diesel::{sql_query, RunQueryDsl};
 use serde_json::{Map, Value};
 
-use super::structs::{GenericValue, QueryParams};
+use crate::controller::GenericValue;
 
 use crate::controller::db::establish_connection;
 use crate::controller::fields::field_controller::FieldController;
 use crate::controller::fields::types::FieldType;
 use crate::controller::tables::table_controller::TableController;
+use crate::controller::QueryParams;
 use crate::models::db::connection::DbPool;
 use crate::models::db::driver_connection::establish_driver_connection;
 
@@ -24,8 +25,9 @@ impl CustomController {
     pub async fn find_one(
         &self,
         table_name: String,
-        query_params: QueryParams,
-    ) -> Result<Vec<Value>, ReturnError> {
+        id: String,
+        mut query_params: QueryParams,
+    ) -> Result<Value, ReturnError> {
         let pk = FieldController::find_pk(&table_name);
 
         if pk.is_err() {
@@ -33,10 +35,12 @@ impl CustomController {
                 "Table \"{table_name}\" not found"
             )));
         }
+        let pk = pk.unwrap();
+        query_params.extra.insert(pk.name, id.into());
 
         let conditions_str = match get_conditions(&query_params) {
             Ok(value) => value,
-            Err(value) => return value,
+            Err(value) => return Err(value),
         };
 
         let name = table_name;
@@ -58,13 +62,10 @@ impl CustomController {
 
         let query = format!("SELECT * FROM {} {}", name, conditions_str);
         match client.query(&query, &[]).await {
-            Ok(rows) => {
-                let results = match resolve_rows(rows) {
-                    Ok(value) => value,
-                    Err(value) => return value,
-                };
-                return Ok(results);
-            }
+            Ok(rows) => match resolve_rows(rows) {
+                Ok(value) => return Ok(value.first().unwrap().clone()),
+                Err(value) => return Err(value),
+            },
             Err(err) => {
                 return Err(ReturnError {
                     error_msg: err.to_string(),
@@ -77,20 +78,44 @@ impl CustomController {
 
     pub async fn find_all(
         table_name: String,
-        _query_params: QueryParams,
+        mut query_params: QueryParams,
     ) -> Result<Vec<GenericValue>, ReturnError> {
-        let table = TableController::find_by_name(table_name);
-        if table.is_err() {
+        let fields = FieldController::find_all_by_table_name(&table_name);
+        if fields.is_err() {
             return Err(ReturnError::without_value("Table not found".to_owned()));
         }
-        let table = table.unwrap();
-        let table_name = table.name;
+        let fields = fields.unwrap();
+
+        let extras = query_params.get_extras();
+
+        let mut clause = String::new();
+        let mut field_in_condition = Vec::new();
+        for (i, (key, _)) in extras.iter().enumerate() {
+            if i == 0 {
+                clause.push_str("WHERE ");
+            }
+            if i > 0 {
+                clause.push_str(" AND ");
+            }
+            if !QueryParams::is_array(key) {
+                clause.push_str(format!("{} = ${}", key, i + 1).as_str());
+            } else {
+                clause.push_str(format!("{} @> ${}", key, i + 1).as_str());
+            }
+            field_in_condition.push(key.clone());
+        }
+
         let connection = &mut establish_connection();
         let query = format!(
-            "SELECT row_to_json(t) as row FROM (Select * from {}) t;",
-            table_name
+            "SELECT row_to_json(t) as row FROM (Select * from {} {}) t;",
+            table_name, clause
         );
         let query = sql_query(query);
+
+        let query = match add_params(fields.iter(), &extras, query) {
+            Ok(query) => query,
+            Err(err) => return Err(err),
+        };
 
         match query.get_results::<GenericValue>(connection) {
             Ok(results) => {
@@ -118,8 +143,10 @@ impl CustomController {
         let values_cloned = values.clone();
         for field in fields.clone() {
             let values = values_cloned.as_object().unwrap();
+
             if field.is_required
-                && field.default_value.is_none()
+                && (field.default_value.is_none()
+                    || field.default_value.is_some_and(|x| x.is_empty()))
                 && !values.contains_key(&field.name)
             {
                 return Err(ReturnError::without_value(format!(
@@ -206,6 +233,17 @@ fn add_params<'a>(
         .collect();
     for (key, value) in key_value {
         if !exist_in_fields.contains(&key.to_lowercase()) {
+            // let array = get_as_array::<i64>(value);
+            // if array.is_ok() {
+            //     let array = array.unwrap();
+            //     println!("{}", serde_json::to_string(&array).unwrap())
+            // } else {
+            //     return Err(ReturnError::without_value(format!(
+            //         "Erro ao converter array: {}",
+            //         array.unwrap_err().error_msg
+            //     )));
+            // }
+
             return Err(ReturnError::without_value(format!(
                 "Column \"{}\" not found",
                 key
@@ -281,15 +319,31 @@ fn add_params<'a>(
     return Ok(query);
 }
 
-fn get_conditions(query_params: &QueryParams) -> Result<String, Result<Vec<Value>, ReturnError>> {
-    let conditions = &query_params.conditions;
-    if conditions.is_none() {
-        return Err(Err(ReturnError::without_value(
+// fn get_as_array<T: Serialize + DeserializeOwned>(value: &Value) -> Result<Vec<T>, ReturnError> {
+//     if !value.is_array() {
+//         return Err(ReturnError::without_value("Invalid data".to_owned()));
+//     }
+
+//     // Generate a new Vec<T> from value
+//     let array: Vec<T> = match serde_json::from_value(value.clone()) {
+//         Ok(value) => value,
+//         Err(error) => {
+//             return Err(ReturnError::without_value(error.to_string()));
+//         }
+//     };
+//     println!(
+//         "Array convertido {}",
+//         serde_json::to_string(&array).unwrap()
+//     );
+//     Ok(array)
+// }
+fn get_conditions(query_params: &QueryParams) -> Result<String, ReturnError> {
+    let conditions = &query_params.extra;
+    if conditions.is_empty() {
+        return Err(ReturnError::without_value(
             "At least one condition is required".to_owned(),
-        )));
+        ));
     }
-    let conditions = conditions.clone().unwrap();
-    let conditions = conditions.as_object().unwrap();
     let mut conditions_str = String::new();
     if !conditions.is_empty() {
         conditions_str.push_str("where ");
@@ -302,9 +356,7 @@ fn get_conditions(query_params: &QueryParams) -> Result<String, Result<Vec<Value
     }
     Ok(conditions_str)
 }
-fn resolve_rows(
-    rows: Vec<tokio_postgres::Row>,
-) -> Result<Vec<Value>, Result<Vec<Value>, ReturnError>> {
+fn resolve_rows(rows: Vec<tokio_postgres::Row>) -> Result<Vec<Value>, ReturnError> {
     let mut results: Vec<Value> = vec![];
     for row in rows {
         let mut result: Value = Value::Object(Default::default());
@@ -316,9 +368,7 @@ fn resolve_rows(
                     let column_value: Option<i32> = row.get(i);
                     let column_value = match serde_json::to_value(column_value) {
                         Ok(value) => value,
-                        Err(error) => {
-                            return Err(Err(ReturnError::without_value(error.to_string())))
-                        }
+                        Err(error) => return Err(ReturnError::without_value(error.to_string())),
                     };
                     result[column_name] = column_value;
                 }
@@ -326,9 +376,7 @@ fn resolve_rows(
                     let column_value: Option<String> = row.get(i);
                     let column_value = match serde_json::to_value(column_value) {
                         Ok(value) => value,
-                        Err(error) => {
-                            return Err(Err(ReturnError::without_value(error.to_string())))
-                        }
+                        Err(error) => return Err(ReturnError::without_value(error.to_string())),
                     };
                     result[column_name] = column_value;
                 }
@@ -336,9 +384,7 @@ fn resolve_rows(
                     let column_value: Option<String> = row.get(i);
                     let column_value = match serde_json::to_value(column_value) {
                         Ok(value) => value,
-                        Err(error) => {
-                            return Err(Err(ReturnError::without_value(error.to_string())))
-                        }
+                        Err(error) => return Err(ReturnError::without_value(error.to_string())),
                     };
                     result[column_name] = column_value;
                 }
@@ -346,9 +392,7 @@ fn resolve_rows(
                     let column_value: Option<bool> = row.get(i);
                     let column_value = match serde_json::to_value(column_value) {
                         Ok(value) => value,
-                        Err(error) => {
-                            return Err(Err(ReturnError::without_value(error.to_string())))
-                        }
+                        Err(error) => return Err(ReturnError::without_value(error.to_string())),
                     };
                     result[column_name] = column_value;
                 }
@@ -356,9 +400,7 @@ fn resolve_rows(
                     let column_value: Option<chrono::NaiveDateTime> = row.get(i);
                     let column_value = match serde_json::to_value(column_value) {
                         Ok(value) => value,
-                        Err(error) => {
-                            return Err(Err(ReturnError::without_value(error.to_string())))
-                        }
+                        Err(error) => return Err(ReturnError::without_value(error.to_string())),
                     };
                     result[column_name] = column_value;
                 }
@@ -366,9 +408,7 @@ fn resolve_rows(
                     let column_value: Option<f32> = row.get(i);
                     let column_value = match serde_json::to_value(column_value) {
                         Ok(value) => value,
-                        Err(error) => {
-                            return Err(Err(ReturnError::without_value(error.to_string())))
-                        }
+                        Err(error) => return Err(ReturnError::without_value(error.to_string())),
                     };
                     result[column_name] = column_value;
                 }
@@ -376,9 +416,7 @@ fn resolve_rows(
                     let column_value: Option<f64> = row.get(i);
                     let column_value = match serde_json::to_value(column_value) {
                         Ok(value) => value,
-                        Err(error) => {
-                            return Err(Err(ReturnError::without_value(error.to_string())))
-                        }
+                        Err(error) => return Err(ReturnError::without_value(error.to_string())),
                     };
                     result[column_name] = column_value;
                 }
@@ -386,9 +424,7 @@ fn resolve_rows(
                     let column_value: Option<serde_json::Value> = row.get(i);
                     let column_value = match serde_json::to_value(column_value) {
                         Ok(value) => value,
-                        Err(error) => {
-                            return Err(Err(ReturnError::without_value(error.to_string())))
-                        }
+                        Err(error) => return Err(ReturnError::without_value(error.to_string())),
                     };
                     result[column_name] = column_value;
                 }
@@ -396,9 +432,7 @@ fn resolve_rows(
                     let column_value: Option<serde_json::Value> = row.get(i);
                     let column_value = match serde_json::to_value(column_value) {
                         Ok(value) => value,
-                        Err(error) => {
-                            return Err(Err(ReturnError::without_value(error.to_string())))
-                        }
+                        Err(error) => return Err(ReturnError::without_value(error.to_string())),
                     };
                     result[column_name] = column_value;
                 }
@@ -406,9 +440,7 @@ fn resolve_rows(
                     let column_value: Option<Vec<u8>> = row.get(i);
                     let column_value = match serde_json::to_value(column_value) {
                         Ok(value) => value,
-                        Err(error) => {
-                            return Err(Err(ReturnError::without_value(error.to_string())))
-                        }
+                        Err(error) => return Err(ReturnError::without_value(error.to_string())),
                     };
                     result[column_name] = column_value;
                 }
@@ -416,9 +448,7 @@ fn resolve_rows(
                     let column_value: Option<String> = row.get(i);
                     let column_value = match serde_json::to_value(column_value) {
                         Ok(value) => value,
-                        Err(error) => {
-                            return Err(Err(ReturnError::without_value(error.to_string())))
-                        }
+                        Err(error) => return Err(ReturnError::without_value(error.to_string())),
                     };
                     result[column_name] = column_value;
                 }

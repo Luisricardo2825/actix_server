@@ -5,13 +5,16 @@ use diesel::insert_into;
 use diesel::prelude::*;
 use diesel::sql_query;
 use diesel::update;
+use serde_json::json;
+use serde_json::Value;
 
 use super::structs::CreateField;
-use super::structs::QueryParams;
 use super::structs::UpdateField;
 use super::utils::set_table_for_vec;
 use crate::controller::tables::table_controller::TableController;
 use crate::controller::Controller;
+use crate::controller::QueryParams;
+use crate::controller::API_LIMIT;
 use crate::models::db::connection::establish_connection;
 use crate::models::fields_model::Field;
 
@@ -214,17 +217,24 @@ impl FieldController {
         if let Some(id_query) = query_params.id {
             query = query.filter(fields_dsl::id.eq(id_query)); // Search for a unique table
         };
-        if let Some(per_page) = query_params.per_page {
-            query = query.limit(per_page); // Define user tables per page
+        if let Some(limit) = query_params.limit {
+            query = query.limit(limit); // Define user tables per page
         } else {
-            let per_page = query_params.extra.get("perpage");
-            if per_page.is_some() {
-                let per_page = per_page.unwrap();
-                let per_page = per_page.as_str().unwrap();
-                let per_page = per_page.parse::<i64>().unwrap();
-                query = query.limit(per_page); // Define user tables per page
+            let limit = query_params.extra.get("limit");
+            if limit.is_some() {
+                let limit = limit.unwrap();
+
+                if limit.is_string() {
+                    let limit = limit.as_str().unwrap();
+                    let limit = limit.parse::<i64>().unwrap_or(API_LIMIT);
+
+                    query = query.limit(limit); // Define user tables per page
+                } else {
+                    let limit = limit.as_i64().unwrap();
+                    query = query.limit(limit); // Define user tables per page
+                }
             } else {
-                query = query.limit(100) // Default limit to 100
+                query = query.limit(100) // Default limit
             }
         }
 
@@ -322,27 +332,46 @@ impl FieldController {
         }
     }
 
-    pub fn delete_field_by_name<S: AsRef<str>>(
-        table_id: i32,
-        name: S,
-    ) -> Result<Field, ReturnError> {
+    pub fn delete_field_by_name<S: AsRef<str>>(table: S, name: S) -> Result<Value, ReturnError> {
         let connection = &mut establish_connection();
-        match delete(fields_dsl::fields)
-            .filter(fields_dsl::name.eq(name.as_ref()))
-            .filter(fields_dsl::table_id.eq(table_id))
-            .get_result::<Field>(connection)
-        {
-            Ok(res) => {
-                return Ok(res); // if Successful, return the deleted data
-            }
-            Err(err) => {
-                return Err(ReturnError {
-                    error_msg: err.to_string(),
-                    values: Some(name.as_ref().into()),
+        let table = table.as_ref();
+        let name = name.as_ref();
+        let table_id = TableController::find_by_name(table).unwrap().id;
+
+        let transaction = connection.transaction(|conn| {
+            match delete(fields_dsl::fields)
+                .filter(fields_dsl::name.eq(name))
+                .filter(fields_dsl::table_id.eq(table_id))
+                .execute(conn)
+            {
+                Ok(res) => {
+                    let delete_sql = FieldQueryBuilder::drop_column(table, name);
+                    let delete_query = sql_query(delete_sql).execute(conn);
+
+                    match delete_query {
+                        Ok(_) => {
+                            let json = json!({"status":"Ok","table":&table,"field":&name});
+                            return Ok(json);
+                        }
+                        Err(err) => {
+                            return Err(ReturnError {
+                                error_msg: err.to_string(),
+                                values: Some(serde_json::to_value(res).unwrap()),
+                            }
+                            .into());
+                        }
+                    }
                 }
-                .into());
+                Err(err) => {
+                    return Err(ReturnError {
+                        error_msg: err.to_string(),
+                        values: Some(name.into()),
+                    }
+                    .into());
+                }
             }
-        }
+        });
+        transaction
     }
 
     pub fn update_field(id: i32, mut new_field: UpdateField) -> Result<Field, ReturnError> {
@@ -354,7 +383,11 @@ impl FieldController {
             .into());
         }
         new_field.id = Some(id);
-        let old = Self::find(id).unwrap();
+        let old = Self::find(id);
+        if old.is_err() {
+            return Err(old.unwrap_err());
+        }
+        let old = old.unwrap();
         if new_field.eq(&old) {
             return Err(ReturnError {
                 error_msg: "No changes".to_string(),
@@ -376,7 +409,6 @@ impl FieldController {
                     let field_query_builder =
                         FieldQueryBuilder::from_vec(table_name, vec![res.clone().to()]);
                     let query = field_query_builder.build_update(&old.name, new_field.clone());
-                    // todo!("NOt yet implemented {}", query);
 
                     // Split query in vec of strings and add ";" at end
                     let query = query.split(";").collect::<Vec<&str>>();

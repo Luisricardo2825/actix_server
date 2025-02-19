@@ -4,11 +4,16 @@ CREATE TABLE IF NOT EXISTS tables (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     description TEXT NOT NULL,
+    view_sql TEXT,
+    capacity INT,
     is_view BOOLEAN NOT NULL DEFAULT FALSE,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
-    view_sql TEXT,
-    capacity INT,
+    auth BOOLEAN NOT NULL DEFAULT TRUE,
+    auth_get BOOLEAN NOT NULL DEFAULT FALSE,
+    auth_post BOOLEAN NOT NULL DEFAULT FALSE,
+    auth_put BOOLEAN NOT NULL DEFAULT FALSE,
+    auth_delete BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );

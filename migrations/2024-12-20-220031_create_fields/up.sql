@@ -14,5 +14,5 @@ CREATE TABLE IF NOT EXISTS fields (
     is_unique BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
-    FOREIGN KEY (table_id) REFERENCES tables(id)
+    FOREIGN KEY (table_id) REFERENCES tables(id) ON DELETE CASCADE
 );

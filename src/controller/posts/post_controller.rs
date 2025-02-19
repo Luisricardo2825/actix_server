@@ -5,13 +5,14 @@ use diesel::insert_into;
 use diesel::prelude::*;
 use diesel::update;
 
+use crate::controller::QueryParams;
+use crate::controller::API_LIMIT;
 use crate::models::db::connection::establish_connection;
 use crate::models::posts_model::Post;
 use crate::routes::utils::reponses::ReturnError;
 use crate::schema::posts::dsl;
 
 use super::structs::Create;
-use super::structs::QueryParams;
 use super::structs::Update;
 
 pub struct PostController;
@@ -68,10 +69,10 @@ impl PostController {
         if let Some(id_query) = query_params.id {
             query = query.filter(dsl::id.eq(id_query)); // Search for a unique post
         };
-        if let Some(per_page) = query_params.per_page {
-            query = query.limit(per_page); // Define user posts per page
+        if let Some(limit) = query_params.limit {
+            query = query.limit(limit); // Define user posts per page
         } else {
-            query = query.limit(100) // Default limit to 100
+            query = query.limit(API_LIMIT) // Default limit
         }
 
         match query.load(connection) {

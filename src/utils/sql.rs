@@ -50,7 +50,18 @@ impl TableQueryBuilder {
         str_table
     }
     pub fn build_drop_table(&self) -> String {
-        format!("DROP TABLE IF EXISTS {};", self.table.name)
+        format!("DROP TABLE IF EXISTS {} CASCADE;", self.table.name)
+    }
+
+    pub fn drop_table(name: &str) -> String {
+        format!("DROP TABLE IF EXISTS {} CASCADE;", name)
+    }
+
+    pub fn delete_fields(name: &str) -> String {
+        format!(
+            "Delete from fields where table_id in (Select id from tables where name='{}')",
+            name
+        )
     }
 
     pub fn build_fields(&self) -> String {
@@ -410,6 +421,16 @@ impl FieldQueryBuilder {
         str_field
     }
 
+    pub fn drop_column<S: AsRef<str>>(table: S, field: S) -> String {
+        let mut str_field = String::new();
+
+        str_field.push_str(&format!("ALTER TABLE {}", table.as_ref()));
+        str_field.push_str("\nDROP COLUMN ");
+        str_field.push_str(&format!("{}", field.as_ref()));
+        str_field.push_str(";");
+
+        str_field
+    }
     pub fn get_field_constraints(field: &CreateField) -> String {
         let mut str_constraints = String::new();
 

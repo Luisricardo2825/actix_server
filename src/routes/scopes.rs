@@ -53,10 +53,10 @@ impl Scopes {
     pub fn tables_scope() -> actix_web::Scope {
         actix_web::web::scope("tables")
             .route("/", web::post().to(TableRoute::create))
-            .route("/{id}/", web::get().to(TableRoute::find))
+            .route("/{id}/", web::get().to(TableRoute::find_table_by_name))
             .route("/", web::get().to(TableRoute::find_all))
             .route("/{id}/", web::patch().to(TableRoute::update))
-            .route("/{id}/", web::delete().to(TableRoute::delete))
+            .route("/{id}/", web::delete().to(TableRoute::delete_table_by_name))
     }
 
     pub fn fields_scope() -> actix_web::Scope {
@@ -65,7 +65,6 @@ impl Scopes {
             .route("/{id}/", web::get().to(FieldRoute::find))
             .route("/", web::get().to(FieldRoute::find_all))
             .route("/{id}/", web::patch().to(FieldRoute::update))
-            .route("/{id}/", web::delete().to(FieldRoute::delete))
             .route(
                 "/{field_name}/",
                 web::delete().to(FieldRoute::delete_by_name),

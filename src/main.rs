@@ -2,7 +2,7 @@ use actix_server::config::query_cfg;
 
 use actix_server::controller::users::structs::Create;
 use actix_server::controller::users::user_controller;
-use actix_server::middlewares::CHECK_LOGIN;
+use actix_server::middlewares::{CHECK_LOGIN, SHOULD_CHECK_LOGIN};
 use actix_server::models::db::connection::db_poll;
 use actix_server::routes::scopes::Scopes;
 
@@ -32,9 +32,9 @@ async fn main() -> std::io::Result<()> {
             .service(Scopes::posts_scope())
             .service(Scopes::users_scope().wrap(CHECK_LOGIN))
             .service(Scopes::login_scope())
-            .service(Scopes::fields_scope())
-            .service(Scopes::tables_scope())
-            .service(Scopes::custom_scope())
+            .service(Scopes::fields_scope().wrap(CHECK_LOGIN))
+            .service(Scopes::tables_scope().wrap(CHECK_LOGIN))
+            .service(Scopes::custom_scope().wrap(SHOULD_CHECK_LOGIN))
     })
     .bind(("127.0.0.1", 8080))?
     .run()

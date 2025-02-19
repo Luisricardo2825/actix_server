@@ -1,7 +1,7 @@
 use crate::controller::fields::field_controller::FieldController;
 use crate::controller::fields::structs::CreateField;
-use crate::controller::fields::structs::QueryParams;
 use crate::controller::fields::structs::UpdateField;
+use crate::controller::QueryParams;
 use crate::routes::utils::reponses::ReturnError;
 use crate::utils::get_body::get_body;
 use actix_web::web;
@@ -68,38 +68,11 @@ impl FieldRoute {
             }
         }
     }
-    pub async fn delete(
-        table_id: web::Path<i32>,
-        field_id: web::Path<i32>,
-    ) -> Result<impl Responder> {
-        let table_id = table_id.into_inner();
-        let field_id = field_id.into_inner();
-        match FieldController::delete_field(table_id, field_id) {
-            Ok(res) => {
-                return Ok(HttpResponse::Ok().json(res)); // if Successful, return the deleted data
-            }
-            Err(err) => {
-                let not_found = err.to_string().to_lowercase().contains("not found");
-                if not_found {
-                    return Ok(HttpResponse::NotFound().json(ReturnError {
-                        error_msg: format!("table with id: {} not found", &table_id),
-                        values: None,
-                    }));
-                }
-                return Ok(HttpResponse::BadRequest().json(ReturnError {
-                    error_msg: err.to_string(),
-                    values: None,
-                }));
-            }
-        }
-    }
-    pub async fn delete_by_name(
-        table_id: web::Path<i32>,
-        field_name: web::Path<String>,
-    ) -> Result<impl Responder> {
-        let table_id = table_id.into_inner();
-        let field_name = field_name.into_inner();
-        let result = match FieldController::delete_field_by_name(table_id, field_name) {
+
+    pub async fn delete_by_name(path: web::Path<(String, String)>) -> Result<impl Responder> {
+        let (table_name, field_name) = path.into_inner();
+
+        let result = match FieldController::delete_field_by_name(&table_name, &field_name) {
             Ok(res) => {
                 HttpResponse::Ok().json(res) // if Successful, return the deleted data
             }
@@ -107,7 +80,7 @@ impl FieldRoute {
                 let not_found = err.to_string().to_lowercase().contains("not found");
                 if not_found {
                     HttpResponse::NotFound().json(ReturnError {
-                        error_msg: format!("table with id: {} not found", &table_id),
+                        error_msg: format!("table with name: {} not found", &table_name),
                         values: None,
                     })
                 } else {
