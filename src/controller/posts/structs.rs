@@ -23,10 +23,3 @@ pub struct Create {
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
 }
-
-#[derive(Serialize, Deserialize, Insertable, Clone)]
-#[diesel(table_name = crate::schema::posts)]
-#[serde(rename_all = "camelCase")]
-pub struct Delete {
-    pub id: i32,
-}

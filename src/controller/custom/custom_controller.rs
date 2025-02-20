@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
+use crate::controller::GenericValue;
+use crate::models::cms::fields_model::Field;
 use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
 use diesel::pg::Pg;
 use diesel::query_builder::BoxedSqlQuery;
 use diesel::sql_types::{Binary, Bool, Date, Float, Integer, Json, Time, Timestamp, VarChar};
 use diesel::{sql_query, RunQueryDsl};
 use serde_json::{Map, Value};
-
-use crate::controller::GenericValue;
 
 use crate::controller::db::establish_connection;
 use crate::controller::fields::field_controller::FieldController;
@@ -167,7 +167,7 @@ impl CustomController {
             .iter()
             .filter(|x| !x.is_auto_increment)
             .map(|x| x.clone())
-            .collect::<Vec<crate::models::fields_model::Field>>();
+            .collect::<Vec<Field>>();
         let query = format!("INSERT INTO {}", table_name);
         match mutate(table_name, values, query, fields) {
             Ok(value) => Ok(value),
@@ -180,7 +180,7 @@ fn mutate(
     table_name: String,
     values: Value,
     query: String,
-    fields: Vec<crate::models::fields_model::Field>,
+    fields: Vec<Field>,
 ) -> Result<Vec<GenericValue>, ReturnError> {
     let fields = fields.iter();
     let values = values.as_object().unwrap();
@@ -219,7 +219,7 @@ fn mutate(
 }
 
 fn add_params<'a>(
-    fields: std::slice::Iter<'a, crate::models::fields_model::Field>,
+    fields: std::slice::Iter<'a, Field>,
     key_value: &'a Map<String, Value>,
     query: diesel::query_builder::SqlQuery,
 ) -> Result<BoxedSqlQuery<'a, Pg, diesel::query_builder::SqlQuery>, ReturnError> {
@@ -233,16 +233,6 @@ fn add_params<'a>(
         .collect();
     for (key, value) in key_value {
         if !exist_in_fields.contains(&key.to_lowercase()) {
-            // let array = get_as_array::<i64>(value);
-            // if array.is_ok() {
-            //     let array = array.unwrap();
-            //     println!("{}", serde_json::to_string(&array).unwrap())
-            // } else {
-            //     return Err(ReturnError::without_value(format!(
-            //         "Erro ao converter array: {}",
-            //         array.unwrap_err().error_msg
-            //     )));
-            // }
 
             return Err(ReturnError::without_value(format!(
                 "Column \"{}\" not found",
@@ -319,24 +309,6 @@ fn add_params<'a>(
     return Ok(query);
 }
 
-// fn get_as_array<T: Serialize + DeserializeOwned>(value: &Value) -> Result<Vec<T>, ReturnError> {
-//     if !value.is_array() {
-//         return Err(ReturnError::without_value("Invalid data".to_owned()));
-//     }
-
-//     // Generate a new Vec<T> from value
-//     let array: Vec<T> = match serde_json::from_value(value.clone()) {
-//         Ok(value) => value,
-//         Err(error) => {
-//             return Err(ReturnError::without_value(error.to_string()));
-//         }
-//     };
-//     println!(
-//         "Array convertido {}",
-//         serde_json::to_string(&array).unwrap()
-//     );
-//     Ok(array)
-// }
 fn get_conditions(query_params: &QueryParams) -> Result<String, ReturnError> {
     let conditions = &query_params.extra;
     if conditions.is_empty() {

@@ -1,19 +1,14 @@
--- Your SQL goes here
-
-CREATE TABLE IF NOT EXISTS tables (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    description TEXT NOT NULL,
-    view_sql TEXT,
-    capacity INT,
-    is_view BOOLEAN NOT NULL DEFAULT FALSE,
-    is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
-    auth BOOLEAN NOT NULL DEFAULT TRUE,
-    auth_get BOOLEAN NOT NULL DEFAULT FALSE,
-    auth_post BOOLEAN NOT NULL DEFAULT FALSE,
-    auth_put BOOLEAN NOT NULL DEFAULT FALSE,
-    auth_delete BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
+CREATE TABLE IF NOT EXISTS tables
+(
+ id        serial NOT NULL,
+ name        varchar(255) NOT NULL,
+ description text NOT NULL,
+ view_sql    text NULL,
+ capacity    int NULL,
+ is_view     boolean NOT NULL DEFAULT FALSE,
+ is_active   boolean NOT NULL DEFAULT TRUE,
+ is_deleted  boolean NOT NULL DEFAULT FALSE,
+ created_at  timestamp NULL DEFAULT NOW(),
+ updated_at  timestamp NULL DEFAULT NOW(),
+ CONSTRAINT PK_tables PRIMARY KEY ( id )
 );

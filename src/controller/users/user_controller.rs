@@ -9,7 +9,7 @@ use crate::controller::Controller;
 use crate::controller::QueryParams;
 use crate::controller::API_LIMIT;
 use crate::models::db::connection::establish_connection;
-use crate::models::users_model::User;
+use crate::models::users::users_model::User;
 use crate::routes::utils::reponses::ReturnError;
 use crate::schema::users::dsl;
 
@@ -121,8 +121,13 @@ impl UserController {
         new_user.password = PasswordUtils::hash(new_user.password); // Hash password
         let query = insert_into(dsl::users).values(&new_user);
         match query.get_result::<User>(connection) {
-            Ok(_) => return true,
-            Err(_) => false,
+            Ok(_) => {
+                return true;
+            }
+            Err(err) => {
+                println!("{}", err);
+                return false;
+            }
         }
     }
     pub fn find_by_email(user_email: String) -> Result<User, ReturnError> {

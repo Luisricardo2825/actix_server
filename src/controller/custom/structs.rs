@@ -137,12 +137,6 @@ impl Create {
     }
 }
 
-#[derive(Serialize, Deserialize, Insertable, Clone, Debug)]
-#[diesel(table_name = crate::schema::tables)]
-#[serde(rename_all = "camelCase")]
-pub struct Delete {
-    pub id: i32,
-}
 
 // #[derive(AsExpression, Debug, Deserialize, Serialize, FromSqlRow)]
 // #[sql_type = "Text"]

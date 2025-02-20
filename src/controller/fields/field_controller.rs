@@ -16,7 +16,7 @@ use crate::controller::Controller;
 use crate::controller::QueryParams;
 use crate::controller::API_LIMIT;
 use crate::models::db::connection::establish_connection;
-use crate::models::fields_model::Field;
+use crate::models::cms::fields_model::Field;
 
 use crate::routes::utils::reponses::ReturnError;
 use crate::schema::fields::dsl as fields_dsl;

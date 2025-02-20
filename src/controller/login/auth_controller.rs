@@ -2,7 +2,7 @@ use std::env;
 
 use crate::{
     controller::users::{user_controller::UserController, utils::password::PasswordUtils},
-    models::users_model::User,
+    models::users::users_model::User,
     routes::utils::reponses::ReturnError,
 };
 use dotenvy::dotenv;

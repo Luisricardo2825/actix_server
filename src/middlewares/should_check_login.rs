@@ -9,8 +9,13 @@ use futures_util::future::LocalBoxFuture;
 
 use crate::{
     controller::{
-        login::auth_controller::AuthController, tables::table_controller::TableController,
+        login::auth_controller::AuthController,
+        tables::{
+            permissions::table_permissions_controller::TablePermissionsController,
+            table_controller::TableController,
+        },
     },
+    models::cms::permission_model::TablePermissions,
     routes::utils::reponses::ReturnError,
 };
 
@@ -80,7 +85,37 @@ where
 
         let method = request.method().as_str().to_uppercase();
 
-        let can_bypass = table.check_method(&method);
+        let table_permissions = TablePermissionsController::find_by_table_id(table.id);
+        if table_permissions.is_err() {
+            let (request, _pl) = request.into_parts();
+            let error_ret = ReturnError {
+                error_msg: "Not authorized".to_string(),
+                values: Some(path.into()),
+            };
+            let response = HttpResponse::Unauthorized()
+                .json(error_ret)
+                // constructed responses map to "right" body
+                .map_into_right_body();
+
+            return Box::pin(async { Ok(ServiceResponse::new(request, response)) });
+        }
+        let table_permissions = table_permissions.unwrap();
+        let permission = TablePermissions::resolve_method(method);
+        if permission.is_err() {
+            let (request, _pl) = request.into_parts();
+            let error_ret = ReturnError {
+                error_msg: "Not authorized".to_string(),
+                values: Some(path.into()),
+            };
+            let response = HttpResponse::Unauthorized()
+                .json(error_ret)
+                // constructed responses map to "right" body
+                .map_into_right_body();
+
+            return Box::pin(async { Ok(ServiceResponse::new(request, response)) });
+        }
+        let permission = permission.unwrap();
+        let can_bypass = TablePermissions::check(table_permissions, permission);
 
         if can_bypass {
             let res = self.service.call(request);

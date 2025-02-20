@@ -3,7 +3,7 @@ use derive_more::derive::Debug;
 use diesel::{AsChangeset, Insertable};
 use serde::{Deserialize, Serialize};
 
-use crate::{models::fields_model::Field, routes::utils::reponses::ReturnError};
+use crate::{models::cms::fields_model::Field, routes::utils::reponses::ReturnError};
 
 use super::types::FieldType;
 

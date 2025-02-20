@@ -4,8 +4,12 @@ use actix_web::web;
 use crate::{
     middlewares::CHECK_LOGIN,
     services::{
-        auth::AuthService, custom::CustomRoute, field::FieldRoute, posts::PostsRoute,
-        table::TableRoute, users::UsersRoute,
+        cms::{
+            core::{field::FieldRoute, table::TableRoute},
+            custom::custom::CustomRoute,
+        },
+        posts::PostsRoute,
+        users::{auth::auth::AuthService, core::users::UsersRoute},
     },
 };
 
@@ -27,7 +31,6 @@ return actix_web::Scope
 
 pub struct Scopes;
 
-// #[list_methods("teste")]
 impl Scopes {
     pub fn posts_scope() -> actix_web::Scope {
         actix_web::web::scope("posts")

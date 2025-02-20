@@ -1,9 +1,7 @@
-
 // Default models
 pub mod db;
 pub mod posts_model;
-pub mod users_model;
+pub mod users;
 
-// Models for custom modules
-pub mod fields_model;
-pub mod table_model;
+// cms module
+pub mod cms;

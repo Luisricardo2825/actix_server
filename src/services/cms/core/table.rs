@@ -10,38 +10,12 @@ use crate::controller::GenericValue;
 use crate::routes::utils::reponses::ReturnError;
 use crate::utils::get_body::get_body;
 
-use crate::controller::tables::structs::Delete;
 use crate::controller::tables::structs::Update;
 use crate::controller::QueryParams;
 
 pub struct TableRoute;
 
 impl TableRoute {
-    pub async fn delete(payload: web::Payload) -> Result<impl Responder> {
-        let table = match get_body::<Delete>(payload).await {
-            Ok(res) => res,
-            Err(err) => return Ok(HttpResponse::BadRequest().json(err)),
-        };
-
-        match TableController::delete(table.id) {
-            Ok(res) => {
-                return Ok(HttpResponse::Ok().json(res)); // if Successful, return the deleted data
-            }
-            Err(err) => {
-                let not_found = err.to_string().to_lowercase().contains("not found");
-                if not_found {
-                    return Ok(HttpResponse::NotFound().json(ReturnError {
-                        error_msg: format!("table with id: {} not found", &table.id),
-                        values: Some(serde_json::to_value(table).unwrap()),
-                    }));
-                }
-                return Ok(HttpResponse::BadRequest().json(ReturnError {
-                    error_msg: err.to_string(),
-                    values: Some(serde_json::to_value(table).unwrap()),
-                }));
-            }
-        }
-    }
     pub async fn create(payload: web::Payload) -> Result<impl Responder> {
         let table = match get_body::<CreateTableRequest>(payload).await {
             Ok(res) => res,

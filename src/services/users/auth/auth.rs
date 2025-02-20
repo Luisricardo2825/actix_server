@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     controller::login::auth_controller::{AuthController, Claims, LoginData},
-    models::users_model::User,
+    models::users::users_model::User,
     utils::get_body::get_body,
 };
 

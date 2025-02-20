@@ -1,7 +1,6 @@
-use crate::models::table_model::Table;
+use super::table_model::Table;
 use chrono::NaiveDateTime;
 use diesel::prelude::*;
-
 use serde::{Deserialize, Serialize};
 
 #[derive(

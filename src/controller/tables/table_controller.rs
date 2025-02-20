@@ -8,6 +8,7 @@ use diesel::update;
 use serde_json::json;
 use serde_json::Value;
 
+use super::permissions::table_permissions_controller::TablePermissionsController;
 use super::structs::Create;
 use super::structs::CreateTableRequest;
 use super::structs::Update;
@@ -17,12 +18,15 @@ use crate::controller::Controller;
 use crate::controller::GenericValue;
 use crate::controller::QueryParams;
 use crate::controller::API_LIMIT;
+use crate::models::cms::permission_model::DefaultPermissions;
+use crate::models::cms::permission_model::TablePermissions;
 use crate::models::db::connection::establish_connection;
 
-use crate::models::table_model::Table;
+use crate::models::cms::table_model::Table;
 use crate::routes::utils::reponses::ReturnError;
 use crate::schema::fields::dsl as fields_dsl;
 use crate::schema::tables::dsl as tables_dsl;
+use crate::schema::tables_permissions::dsl as permissions_dsl;
 use crate::utils::sql::TableQueryBuilder;
 
 pub struct TableController;
@@ -132,7 +136,23 @@ impl Controller<Table, CreateTableRequest> for TableController {
                             let create_table = sql_query(query_table).execute(conn);
                             match create_table {
                                 Ok(_) => {
-                                    return Ok(res_table);
+                                    let values =
+                                        TablePermissions::default_permissions(res_table.id);
+                                    let query = insert_into(permissions_dsl::tables_permissions)
+                                        .values(&values);
+                                    let permissions_result =
+                                        query.execute(conn).map_err(|res| ReturnError {
+                                            error_msg: res.to_string(),
+                                            values: Some(serde_json::to_value(values).unwrap()),
+                                        });
+                                    match permissions_result {
+                                        Ok(_) => {
+                                            return Ok(res_table);
+                                        }
+                                        Err(err) => {
+                                            return Err(err);
+                                        }
+                                    }
                                 }
                                 Err(err) => {
                                     return Err(ReturnError {
@@ -312,5 +332,12 @@ impl TableController {
         });
 
         transaction
+    }
+    pub fn get_table_permissions<S: AsRef<str>>(
+        table_name: S,
+    ) -> Result<Vec<TablePermissions>, ReturnError> {
+        let table = Self::find_by_name(table_name)?;
+
+        TablePermissionsController::find_by_table_id(table.id)
     }
 }

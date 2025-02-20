@@ -122,7 +122,6 @@ impl QueryParams {
         for (key, value) in &self.extra.clone() {
             if Self::is_array(key) {
                 let value = Self::get_array_value(value);
-                println!("{} is array", serde_json::to_string(&value).unwrap());
                 let _ = &mut self.extra.insert(key.to_string(), Value::Array(value));
                 continue;
             }

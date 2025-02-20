@@ -37,7 +37,6 @@ impl FieldRoute {
 
         match field.parse::<i32>() {
             Ok(field_id) => {
-                println!("field_id {field_id}");
                 match FieldController::find(field_id) {
                     Ok(results) => return Ok(HttpResponse::Ok().json(results)),
                     Err(err) => {
@@ -59,7 +58,6 @@ impl FieldRoute {
     ) -> Result<impl Responder> {
         let (table_name,) = path.into_inner();
         let query_params = query_params.into_inner();
-        println!("query_params: {query_params:?}");
 
         match FieldController::find_all_fields(table_name, query_params) {
             Ok(results) => return Ok(HttpResponse::Ok().json(results)),
